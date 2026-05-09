@@ -1,0 +1,59 @@
+Patient information - 67-year-old male presenting via ambulance at 20:17 on 2024-03-15.
+
+Reason for admission - Chest pain and dyspnoea for 3 hours (from around 17:00 tonight)
+
+History of presenting illness - Patient reports sudden onset of "pressure like" chest pain soon after finishing dinner. Describes pain as 8/10 in intensity and radiating to left arm. Associated shortness of breath, "like I can't catch my breath, doc." Symptoms began while watching television - not provoked by exertion. No relief with rest.
+
+Past medical history - Hypertension, T2DM (managed with oral hypoglycemics), hyperlipidemia, previous MI in 2018.
+
+Current medications - Metformin 500 mg BID, lisinopril 20 mg daily, atorvastatin 40 mg daily, metoprolol 25 mg BID.
+
+Social and family history - Former smoker (30-pack a year history, quit after MI). Retired construction worker living at home with wife. Alcohol use <10 standard drinks per week. No illicit drug use.
+
+Physical examination
+
+Vital Signs: BP 168/96, HR 92, RR 22, Temp 98.6°F, SpO2 94% on room air.
+
+General: Anxious, moderate distress, diaphoretic.
+
+HEENT: Normocephalic, atraumatic, pupils equal and reactive, no JVD.
+
+Cardiovascular: Regular rhythm, tachycardic, S1/S2 normal, no murmurs/rubs/gallops.
+
+Respiratory: Increased work of breathing, no wheezes or crackles.
+
+Abdominal: Soft, non-tender, non-distended, normal bowel sounds.
+
+Extremities: No edema, pulses 2+ bilaterally.
+
+Neurological: Alert and oriented x3, normal strength all extremities.
+
+Investigations -
+
+ECG: 1mm ST-segment elevation in leads V2-V4
+
+Initial Troponin I: 0.32 ng/mL (elevated)
+
+BNP: 420 pg/mL (elevated)
+
+CBC: WBC 9.2, Hgb 13.8, Plt 245
+
+BMP: Na 138, K 4.0, Cl 102, CO2 24, BUN 18, Cr 1.1, Glucose 156
+
+Chest X-ray: No acute cardiopulmonary process
+
+Assessment
+Acute coronary syndrome, likely STEMI, anterior wall
+
+Hypertension, poorly controlled
+
+Plan
+
+Cardiology consultation for urgent cardiac catheterization
+Clopidogrel 600mg loading dose
+Heparin drip initiated per ACS protocol
+Monitor cardiac enzymes q6h
+Telemetry monitoring
+Oxygen therapy to maintain SpO2 >94%
+Continue home medications except metformin (hold due to potential contrast use)
+Blood glucose monitoring q6h with sliding scale insulin coverage
