@@ -1,0 +1,13 @@
+# Backend (FastAPI + ingestion + chat)
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+python-multipart>=0.0.9
+
+chromadb>=0.5
+sentence-transformers>=2.2
+python-dateutil>=2.8
+
+ibm-watsonx-ai>=1.0
+
+pytest>=8.0

@@ -1,0 +1,34 @@
+OUTPATIENT VISIT NOTE — Primary Care
+Date of visit: 2024-11-05
+Provider: Dr. Ana Morales, MD — Family Medicine
+
+Chief complaint: Diabetes check-in; wants to understand lab numbers.
+
+History of presenting illness:
+Elena feels more energetic. She uses a pillbox and has improved adherence. No hypoglycemia symptoms.
+
+Past medical history:
+Type 2 diabetes mellitus, hypertension, hyperlipidemia.
+
+Current medications:
+Metformin 1000 mg twice daily, Lisinopril 10 mg daily, Atorvastatin 20 mg nightly.
+
+Vital Signs:
+BP 132/78 mmHg, HR 72, RR 16, SpO2 98% on room air, Weight 84 kg.
+
+Assessment:
+1. Type 2 diabetes mellitus — improved glycemic control.
+2. Hypertension — at goal.
+3. Hyperlipidemia — at goal on statin.
+
+Plan:
+- Maintain current therapy.
+- Labs today: A1C, BMP.
+
+Labs (same day):
+A1C 7.8%
+Glucose (random) 142 mg/dL
+Creatinine 0.9 mg/dL
+
+Instructions to patient:
+Great progress; continue lifestyle changes. Follow-up in 6 months.

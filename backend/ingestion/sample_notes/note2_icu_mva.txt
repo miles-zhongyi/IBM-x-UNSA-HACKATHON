@@ -1,0 +1,90 @@
+Patient information - 23-year-old female admitted to ICU via ED at 07:45 on 2024-06-10
+
+Reason for admission - Respiratory distress and altered mental state following MVA
+
+History of presenting illness - Patient was the restrained driver in a high-speed motor vehicle collision at approx. 03:30. Initial GCS at scene was 13. In the emergency department patient became progressively more dyspneic and confused, with decreasing oxygen saturation despite supplemental O2. CT chest revealed bilateral pulmonary contusions and right-sided pneumothorax. Intubated for respiratory failure and hypoxia prior to ICU transfer.
+
+Past medical history - Nil recorded and no medications. Still chasing up NOK to clarify.
+
+Social and family history - Unknown.
+
+Physical examination
+
+Vital Signs: BP 92/58, HR 122, RR 18 (ventilated), Temp 38.2°C, SpO2 94% on FiO2 60%
+
+Neurological: Intubated and sedated on propofol drip. RASS -3. Pupils equal and reactive. Withdraws to pain in all extremities.
+
+HEENT: Facial contusions, endotracheal tube secured at 23cm at teeth, orogastric tube in place.
+
+Cardiovascular: Tachycardic, regular rhythm, no murmurs, weak peripheral pulses, capillary refill >3 seconds.
+
+Respiratory: Mechanically ventilated, bilateral chest tubes in place, decreased breath sounds bilaterally with occasional crackles.
+
+Abdominal: Soft, mild distension, bowel sounds hypoactive.
+
+Skin: Multiple contusions on chest and abdomen, abrasion on right forearm.
+
+Extremities: No obvious deformities, right lower extremity ecchymosis.
+
+Investigations (handover from ED)
+
+ABG: pH 7.28, pCO2 48, pO2 82, HCO3 22, BE -4
+
+CBC: WBC 15.2, Hgb 11.2, Plt 178
+
+BMP: Na 138, K 3.8, Cl 100, CO2 22, BUN 22, Cr 1.4, Glucose 168
+
+Liver function: ALT 220, AST 345, ALP 98, Total bilirubin 1.2
+
+PT/INR: 14.2/1.2, PTT 34
+
+Lactate: 3.8
+
+Troponin: 0.04 (negative)
+
+CT Head: No acute intracranial abnormality
+
+CT C-spine: No fractures or dislocations
+
+CT Chest: Bilateral pulmonary contusions, right pneumothorax (now with chest tube), small left pneumothorax (now with chest tube), non-displaced right 4th-7th rib fractures
+
+CT Abdomen/Pelvis: Grade I liver laceration, no free fluid
+
+Ventilator settings
+
+Mode: Volume-controlled
+
+Tidal Volume: 450mL (6mL/kg IBW)
+
+PEEP: 8 cmH2O
+
+FiO2: 60%
+
+RR: 18
+
+Current Blood Gas Values: As above
+
+Assessment
+
+Traumatic pneumothoraces with bilateral chest tubes
+
+Pulmonary contusions with hypoxemic respiratory failure
+
+Grade I liver laceration
+
+Multiple rib fractures
+
+Potential traumatic brain injury
+
+Plan
+
+Ventilator management: Continue current settings
+Goal SpO2 >92%
+Hemodynamic management: Fluid resuscitation with balanced crystalloids. Vasopressors if needed to maintain MAP >65. Serial lactate measurements
+Sedation: Propofol drip, titrate to RASS -2 to 0
+Pulmonary: Continue chest tube management
+Pulmonary toilet q4h
+Liver laceration: Serial hemoglobin checks q6h. Surgical consultation for monitoring
+Nutrition: Enteral nutrition via orogastric tube
+Consults: Trauma surgery, pulmonary medicine, neurology
+Monitoring: Continuous cardiac monitoring, hourly neurological checks, serial ABGs

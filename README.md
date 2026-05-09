@@ -127,3 +127,14 @@ Without it, `.doc` falls back to python-docx or a binary-strip heuristic.
 from storage import reset_all
 reset_all()  # nukes SQLite + ChromaDB; useful before re-ingesting fresh data
 ```
+
+## Backend API (FastAPI + chat + packaged ingestion)
+
+The integrated backend lives under `backend/`. Ingestion is importable as `backend.ingestion` (see `backend/ingestion/DAL_REFERENCE.md`).
+
+```bash
+pip install -r backend/requirements.txt
+uvicorn backend.api.main:app --reload --port 8000
+```
+
+Details: `backend/README.md`. Tests: `pytest -q` from the repo root.

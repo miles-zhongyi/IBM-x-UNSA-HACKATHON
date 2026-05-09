@@ -1,0 +1,36 @@
+OUTPATIENT VISIT NOTE — Primary Care
+Date of visit: 2023-09-18
+Provider: Dr. Ana Morales, MD — Family Medicine
+
+Chief complaint: Routine diabetes follow-up; patient reports fatigue.
+
+History of presenting illness:
+Elena R., 67-year-old Spanish-speaking woman with type 2 diabetes mellitus and hypertension. She reports increased thirst and blurred vision after meals. Denies chest pain.
+
+Past medical history:
+Type 2 diabetes mellitus, hypertension, hyperlipidemia.
+
+Current medications:
+Metformin 1000 mg twice daily, Lisinopril 10 mg daily, Atorvastatin 20 mg nightly.
+
+Vital Signs:
+BP 148/88 mmHg, HR 78, RR 16, SpO2 97% on room air, Weight 88 kg.
+
+Assessment:
+1. Type 2 diabetes mellitus — suboptimal glycemic control.
+2. Hypertension — above goal.
+3. Hyperlipidemia.
+
+Plan:
+- Labs ordered today: A1C, basic metabolic panel, lipid panel.
+- Discussed nutrition handout; encourage walking 20 minutes daily.
+- Follow-up in 3 months.
+
+Labs (same day):
+A1C 8.9%
+Glucose (random) 212 mg/dL
+Creatinine 0.9 mg/dL
+eGFR >60 mL/min/1.73m2
+
+Instructions to patient:
+Take medications as prescribed. Call clinic for fasting blood sugar readings above 250 or if vomiting.

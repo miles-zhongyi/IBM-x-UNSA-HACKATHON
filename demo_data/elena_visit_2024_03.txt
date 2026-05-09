@@ -1,0 +1,34 @@
+OUTPATIENT VISIT NOTE — Primary Care
+Date of visit: 2024-03-12
+Provider: Dr. Ana Morales, MD — Family Medicine
+
+Chief complaint: Diabetes follow-up; doing better with walking.
+
+History of presenting illness:
+Elena reports fewer episodes of thirst. She has been walking most evenings. Diet still challenging around holidays.
+
+Past medical history:
+Type 2 diabetes mellitus, hypertension, hyperlipidemia.
+
+Current medications:
+Metformin 1000 mg twice daily, Lisinopril 10 mg daily, Atorvastatin 20 mg nightly.
+
+Vital Signs:
+BP 138/82 mmHg, HR 74, RR 16, SpO2 98% on room air, Weight 86 kg.
+
+Assessment:
+1. Type 2 diabetes mellitus — improving.
+2. Hypertension — closer to goal.
+3. Hyperlipidemia — stable.
+
+Plan:
+- Continue current medications.
+- Repeat A1C today.
+
+Labs (same day):
+A1C 8.2%
+Glucose (random) 168 mg/dL
+LDL 92 mg/dL
+
+Instructions to patient:
+Continue meal planning strategies discussed; return in 6 months or sooner if ill.
