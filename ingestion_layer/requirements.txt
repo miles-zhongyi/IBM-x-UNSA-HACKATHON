@@ -3,5 +3,13 @@ chromadb>=0.5
 sentence-transformers>=2.2
 python-dateutil>=2.8
 
+# Document ingestion — text extraction from PDF / DOCX / DOC
+pymupdf>=1.23          # PDF extraction (multilingual, fast) — import as fitz
+python-docx>=1.1       # DOCX extraction
+# antiword is a system package (not pip) used for legacy .doc files:
+#   Linux : sudo apt install antiword
+#   macOS : brew install antiword
+# Without it, .doc falls back to python-docx or a binary-strip heuristic.
+
 # Optional — production extraction backend
 ibm-watsonx-ai>=1.0

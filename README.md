@@ -1,20 +1,40 @@
 # IBM-x-UNSA-HACKATHON
 # Ingestion Layer
 
-Turns raw clinical note text into structured records + searchable vector chunks.
-Everything downstream (RAG, timeline UI, safety) reads through the DAL functions
-in `storage.py`.
+Turns raw clinical note text **and document files (PDF, DOCX, DOC)** into
+structured records + searchable vector chunks. Everything downstream (RAG,
+timeline UI, safety) reads through the DAL functions in `storage.py`.
 
 ## Quick start
 
 ```bash
+cd ingestion_layer
+
+# 1. Create a virtual environment (recommended)
+python -m venv .venv
+source .venv/bin/activate        # Linux/macOS
+# .venv\Scripts\activate         # Windows
+
+# 2. Install all dependencies
 pip install -r requirements.txt
+
+# 3. (Optional) Copy and fill in credentials
+cp .env.example .env             # edit .env with your watsonx keys
+
+# 4. Run the full demo (text notes + document files)
 python test_pipeline.py
+
+# 5. Audit document ingestion specifically
+python audit_ingestion.py
 ```
+
+> **No API keys needed** — the pipeline auto-falls back to heuristic
+> extraction and hashed-ngram embeddings. Set watsonx credentials for
+> production-quality extraction.
 
 ## What it does
 
-For each note text submitted via `pipeline.ingest_text()`:
+### Text input — `pipeline.ingest_text(text, patient_id)`
 
 1. **Extracts structured data** — visit date, provider, diagnoses, medications,
    lab values, vitals, instructions. Two backends:
@@ -28,17 +48,33 @@ For each note text submitted via `pipeline.ingest_text()`:
 5. **Stores in ChromaDB** with metadata so RAG can filter by patient, date,
    document type, and section
 
+### Document input — `pipeline.ingest_document(path, patient_id)`
+
+Accepts PDF, DOCX, and DOC files. Extracts text automatically, then feeds it
+through the same pipeline above. Multilingual content (CJK, Arabic, Cyrillic,
+Devanagari, Latin, etc.) is handled transparently.
+
+| Format | Library      | Notes                                     |
+|--------|--------------|--------------------------------------------|
+| `.pdf` | PyMuPDF      | Unicode-native, handles multilingual PDFs   |
+| `.docx`| python-docx  | Reads paragraphs + table cells (UTF-8 XML)  |
+| `.doc` | antiword     | Falls back to python-docx → binary strip     |
+
 ## File layout
 
 ```
-models.py       — Pydantic schemas (the data contract)
-storage.py      — SQLite + ChromaDB; exposes the DAL
-extraction.py   — LLM and heuristic structured extraction
-chunking.py     — Section-aware chunking
-embedding.py    — sentence-transformers + hashed fallback
-pipeline.py     — Orchestrates the whole flow; one entry point: ingest_text()
-test_pipeline.py — End-to-end demo
-sample_notes/   — Three real-format sample notes (STEMI, ICU MVA, hospice)
+models.py            — Pydantic schemas (the data contract)
+storage.py           — SQLite + ChromaDB; exposes the DAL
+extraction.py        — LLM and heuristic structured extraction
+chunking.py          — Section-aware chunking
+embedding.py         — sentence-transformers + hashed fallback
+document_reader.py   — Text extraction from PDF/DOCX/DOC files
+pipeline.py          — Orchestrator; two entry points: ingest_text(), ingest_document()
+test_pipeline.py     — End-to-end demo (text notes + document files)
+audit_ingestion.py   — Ingestion audit tool (checks every file in sample_pdf_notes/)
+.env.example         — Template for environment variables
+sample_notes/        — Three text-format sample notes (STEMI, ICU MVA, hospice)
+sample_pdf_notes/    — Multi-format sample documents (PDFs + DOC)
 ```
 
 ## DAL — what RAG and the UI call
@@ -60,21 +96,30 @@ from storage import (
     # Citation expansion
     get_document_by_id,          # full document for "where did this come from?" clicks
 )
+
+from pipeline import ingest_text, ingest_document  # ingestion entry points
 ```
 
-## Production switch
+## Environment variables
 
-To use real watsonx instead of the heuristic extractor:
+| Variable            | Required | Default                                | Purpose                    |
+|---------------------|----------|----------------------------------------|----------------------------|
+| `WATSONX_API_KEY`   | No       | —                                      | watsonx extraction backend |
+| `WATSONX_PROJECT_ID`| No       | —                                      | watsonx project            |
+| `WATSONX_URL`       | No       | `https://us-south.ml.cloud.ibm.com`   | watsonx region endpoint    |
+| `WATSONX_MODEL_ID`  | No       | `ibm/granite-3-8b-instruct`           | watsonx model              |
+| `EMBEDDING_BACKEND` | No       | auto-detect                            | `hashed` to force fallback |
 
+## System dependencies (optional)
+
+For legacy `.doc` files, install `antiword`:
 ```bash
-export WATSONX_API_KEY=...
-export WATSONX_PROJECT_ID=...
-export WATSONX_URL=https://us-south.ml.cloud.ibm.com   # or your region
-export WATSONX_MODEL_ID=ibm/granite-3-8b-instruct      # or current model
+# Linux
+sudo apt install antiword
+# macOS
+brew install antiword
 ```
-
-The pipeline auto-detects the env vars and uses watsonx; if the call fails it
-falls back to the heuristic so demos never break.
+Without it, `.doc` falls back to python-docx or a binary-strip heuristic.
 
 ## Reset / wipe
 

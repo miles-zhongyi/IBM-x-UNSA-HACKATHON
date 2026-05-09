@@ -1,21 +1,25 @@
 """
-The ingestion pipeline. One public function: ingest_text().
+The ingestion pipeline. Two public functions:
+  - ingest_text()     — process raw text directly.
+  - ingest_document() — extract text from a file (PDF/DOCX/DOC) then process.
 
 Flow:
   raw text  →  LLM extraction  →  SQLite (structured)
                               ↘
                                 chunk + embed  →  ChromaDB (vectors)
 
-The function returns an IngestionResult with everything the UI needs to
+The functions return an IngestionResult with everything the UI needs to
 show "processed N items" and the document_id for follow-up queries.
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from pathlib import Path
+from typing import Union
 
 from chunking import chunk_document
+from document_reader import read_document_safe, SUPPORTED_EXTENSIONS
 from embedding import embed_texts
 from extraction import extract_structured
 from models import IngestionResult
@@ -114,3 +118,67 @@ def ingest_text(
             chunks_indexed=0,
             error=f"{type(e).__name__}: {e}",
         )
+
+
+def ingest_document(
+    path: Union[str, Path],
+    patient_id: str,
+    source_label: str = "",
+) -> IngestionResult:
+    """
+    Extract text from a document file and run it through the ingestion pipeline.
+
+    Supported formats: PDF (.pdf), Word (.docx, .doc).
+    Multilingual documents (CJK, Arabic, Cyrillic, etc.) are handled
+    transparently by the underlying readers.
+
+    Args:
+        path:         Path to the document file.
+        patient_id:   Patient this document belongs to.
+        source_label: Human-readable label stored with the record.
+                      Defaults to the filename if not provided.
+
+    Returns:
+        IngestionResult — same shape as ingest_text().
+    """
+    path = Path(path)
+    label = source_label or path.name
+
+    # --- Validate extension before touching the pipeline ---
+    if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        return IngestionResult(
+            document_id="",
+            patient_id=patient_id,
+            status="failed",
+            summary="",
+            document_type="unknown",
+            extracted_counts={},
+            chunks_indexed=0,
+            error=(
+                f"Unsupported file type '{path.suffix}'. "
+                f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+            ),
+        )
+
+    # --- Extract text from the document ---
+    text, warning = read_document_safe(path)
+
+    if warning and not text:
+        # Extraction completely failed
+        return IngestionResult(
+            document_id="",
+            patient_id=patient_id,
+            status="failed",
+            summary="",
+            document_type="unknown",
+            extracted_counts={},
+            chunks_indexed=0,
+            error=warning,
+        )
+
+    if warning:
+        print(f"[ingest_document] warning for {label!r}: {warning}")
+
+    # --- Hand off to the text pipeline ---
+    result = ingest_text(text=text, patient_id=patient_id, source_label=label)
+    return result

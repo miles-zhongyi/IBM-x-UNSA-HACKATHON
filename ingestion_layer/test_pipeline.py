@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from embedding import embed_query
-from pipeline import ingest_text
+from pipeline import ingest_text, ingest_document
 from storage import (
     get_active_medications,
     get_all_labs,
@@ -39,9 +39,9 @@ def main():
     reset_all()
 
     # ---------------------------------------------------------------
-    # 1. Ingest three documents — one per patient
+    # 1. Ingest three text documents — one per patient
     # ---------------------------------------------------------------
-    banner("STAGE 1 — INGEST THREE CLINICAL DOCUMENTS")
+    banner("STAGE 1 — INGEST THREE CLINICAL TEXT DOCUMENTS")
 
     samples_dir = Path(__file__).parent / "sample_notes"
     cases = [
@@ -55,6 +55,40 @@ def main():
         result = ingest_text(text, patient_id=patient_id, source_label=path.name)
         print(f"\n--- {patient_id} ({path.name}) ---")
         print(pretty(result.model_dump()))
+
+    # ---------------------------------------------------------------
+    # 1b. Ingest multilingual / multi-format documents from sample_pdf_notes
+    # ---------------------------------------------------------------
+    banner("STAGE 1b — INGEST DOCUMENT FILES (PDF / DOCX / DOC)")
+
+    pdf_dir = Path(__file__).parent / "sample_pdf_notes"
+    doc_cases = [
+        # patient_id               file
+        ("patient_004_pdf_a",      pdf_dir / "frc_ime_sample.pdf"),
+        ("patient_005_pdf_b",      pdf_dir / "UMNwriteup.pdf"),
+        ("patient_006_pdf_c",      pdf_dir / "Psychiatric Assessment Report Sample - Mental Health Evaluation Example.pdf"),
+        ("patient_007_pdf_d",      pdf_dir / "1602558.pdf"),
+        ("patient_008_pdf_e",      pdf_dir / "6d9e204024984122ac7a25d259485387tmp_783e612ac6cb4dfa143181a2c3a39c1d.pdf"),
+        ("patient_009_pdf_f",      pdf_dir / "Recipient Name and Address.pdf"),
+        ("patient_010_doc",        pdf_dir / "physical-examination-normal.doc"),
+    ]
+
+    for patient_id, doc_path in doc_cases:
+        if not doc_path.exists():
+            print(f"\n  [SKIP] {doc_path.name} — file not found")
+            continue
+        print(f"\n--- {patient_id} ({doc_path.name}) ---")
+        result = ingest_document(doc_path, patient_id=patient_id)
+        r = result.model_dump()
+        # Print a concise summary instead of the full dump
+        print(f"  status         : {r['status']}")
+        print(f"  document_type  : {r['document_type']}")
+        print(f"  visit_date     : {r['visit_date']}")
+        print(f"  chunks_indexed : {r['chunks_indexed']}")
+        print(f"  extracted      : {r['extracted_counts']}")
+        print(f"  summary        : {r['summary'][:200]}")
+        if r.get("error"):
+            print(f"  ERROR          : {r['error']}")
 
     # ---------------------------------------------------------------
     # 2. Exercise the structured DAL — what the timeline UI would see
@@ -139,11 +173,12 @@ def main():
         first_doc_id = timeline[0]["id"]
         full = get_document_by_id(first_doc_id)
         print(f"\n[get_document_by_id] {first_doc_id!r}:")
-        print(f"  visit_date: {full['visit_date']}")
-        print(f"  document_type: {full['document_type']}")
-        print(f"  provider: {full['provider_name']}")
-        print(f"  summary: {full['summary']}")
-        print(f"  raw_text (first 300 chars): {full['raw_text'][:300]}...")
+        if full:
+            print(f"  visit_date: {full['visit_date']}")
+            print(f"  document_type: {full['document_type']}")
+            print(f"  provider: {full['provider_name']}")
+            print(f"  summary: {full['summary']}")
+            print(f"  raw_text (first 300 chars): {full['raw_text'][:300]}...")
 
     banner("DONE")
     print("\nAll three documents ingested. SQLite + ChromaDB are populated.")

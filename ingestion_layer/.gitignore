@@ -1,0 +1,15 @@
+# Generated DB / vector store — don't commit these
+data/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Credentials — never commit
+.env
