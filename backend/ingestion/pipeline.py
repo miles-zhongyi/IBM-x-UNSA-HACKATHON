@@ -17,15 +17,15 @@ from typing import Optional
 
 from .chunking import chunk_document
 from .embedding import embed_texts
-from .extraction import extract_structured
+from .extraction_extensions import extract_structured_from_parsed
 from .models import IngestionResult
 from .storage import save_document, store_chunks_in_chroma, init_db
 
 
 def ingest_text(
-    text: str,
-    patient_id: str,
-    source_label: str = "pasted",
+        text: str,
+        patient_id: str,
+        source_label: str = "pasted",
 ) -> IngestionResult:
     """
     Process a single clinical document and persist it to the stores.
@@ -59,7 +59,7 @@ def ingest_text(
 
     try:
         # 1. Extract structured data (the big LLM call, or heuristic fallback)
-        extracted = extract_structured(text)
+        extracted = extract_structured_from_parsed(text, source_label=source_label)
 
         # 2. Persist structured data to SQLite
         save_document(

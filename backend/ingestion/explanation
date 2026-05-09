@@ -1,0 +1,50 @@
+A PDF or image arrives
+        │
+        ▼
+┌─────────────────┐
+│   parser.py     │  "I turn any file into plain text"
+│                 │  PDF → text, image → OCR text, Excel → text
+└────────┬────────┘
+         │  plain text + source_label
+         ▼
+┌──────────────────────────┐
+│  extraction_extensions.py │  "I figure out what KIND of document this is"
+│                           │  detect language → translate if needed
+│                           │  classify: lab_report? discharge_summary? SOAP note?
+│                           │  normalize layout into SOAP-like structure
+└────────────┬──────────────┘
+             │  normalized text
+             ▼
+┌─────────────────┐
+│  extraction.py  │  "I read the text and pull out structured facts"
+│                 │  calls watsonx (IBM) or uses regex fallback
+│                 │  produces: diagnoses, medications, lab values, vitals...
+└────────┬────────┘
+         │  ExtractedDocument object
+         ▼
+┌─────────────────┐
+│   models.py     │  "I define what ExtractedDocument looks like"
+│                 │  just a template — no logic, no database
+│                 │  LabValue, Medication, Diagnosis, Vitals...
+└────────┬────────┘
+         │  validated, structured data
+         ▼
+┌─────────────────┐        ┌─────────────────┐
+│  chunking.py    │        │  embedding.py   │
+│                 │        │                 │
+│ "I split the    │        │ "I convert each │
+│  text into      │───────▶│  chunk into a   │
+│  small pieces"  │        │  vector"        │
+│                 │        │                 │
+│  section-aware  │        │  384 numbers    │
+│  + metadata     │        │  per chunk      │
+└────────┬────────┘        └────────┬────────┘
+         │  chunks + vectors                │
+         └──────────────┬──────────────────┘
+                        ▼
+┌─────────────────┐
+│   storage.py    │  "I save everything and hand it back when asked"
+│                 │
+│  SQLite:        │  ← structured facts (diagnoses, labs, meds)
+│  ChromaDB:      │  ← vectors (for semantic search)
+└─────────────────┘
