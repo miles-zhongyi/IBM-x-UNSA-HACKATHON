@@ -138,3 +138,14 @@ uvicorn backend.api.main:app --reload --port 8000
 ```
 
 Details: `backend/README.md`. Tests: `pytest -q` from the repo root.
+
+## Frontend (Next.js 14)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000` (ensure the API is on port 8000, or set `NEXT_PUBLIC_API_BASE` in `frontend/.env.local`).  
+See `frontend/README.md`, `docs/demo_script.md`, and `PROJECT_BRIEF.md`.

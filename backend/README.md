@@ -43,6 +43,11 @@ Or run `python scripts/seed_demo_data.py`.
 - `api/` — FastAPI routes + startup seeding
 - `reference_corpus/` — patient-education snippets (Chroma collection `patient_education_reference`)
 
+## Document file upload (optional UI)
+
+`POST /api/patients/{patient_id}/documents/file` — multipart field `file` (`.pdf`, `.docx`, `.doc`).  
+Requires `pymupdf` and `python-docx` (listed in `requirements.txt`).
+
 ## Tests
 
 ```bash

@@ -1,21 +1,24 @@
 """
-The ingestion pipeline. One public function: ingest_text().
+The ingestion pipeline.
+
+Public entry points:
+  - ingest_text(text, patient_id, source_label)
+  - ingest_document(path, patient_id, source_label)  — PDF / DOCX / DOC
 
 Flow:
   raw text  →  LLM extraction  →  SQLite (structured)
                               ↘
                                 chunk + embed  →  ChromaDB (vectors)
-
-The function returns an IngestionResult with everything the UI needs to
-show "processed N items" and the document_id for follow-up queries.
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 
 from .chunking import chunk_document
+from .document_reader import SUPPORTED_EXTENSIONS, read_document_safe
 from .embedding import embed_texts
 from .extraction import extract_structured
 from .models import IngestionResult
@@ -114,3 +117,49 @@ def ingest_text(
             chunks_indexed=0,
             error=f"{type(e).__name__}: {e}",
         )
+
+
+def ingest_document(
+    path: Union[str, Path],
+    patient_id: str,
+    source_label: str = "",
+) -> IngestionResult:
+    """
+    Extract text from PDF / DOCX / DOC and run through `ingest_text()`.
+    """
+    path = Path(path)
+    label = source_label or path.name
+
+    if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        return IngestionResult(
+            document_id="",
+            patient_id=patient_id,
+            status="failed",
+            summary="",
+            document_type="unknown",
+            extracted_counts={},
+            chunks_indexed=0,
+            error=(
+                f"Unsupported file type '{path.suffix}'. "
+                f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+            ),
+        )
+
+    text, warning = read_document_safe(path)
+
+    if warning and not text:
+        return IngestionResult(
+            document_id="",
+            patient_id=patient_id,
+            status="failed",
+            summary="",
+            document_type="unknown",
+            extracted_counts={},
+            chunks_indexed=0,
+            error=warning,
+        )
+
+    if warning:
+        print(f"[ingest_document] warning for {label!r}: {warning}")
+
+    return ingest_text(text=text, patient_id=patient_id, source_label=label)

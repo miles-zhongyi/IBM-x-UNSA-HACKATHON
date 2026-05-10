@@ -11,4 +11,6 @@ ingestion_layer/data/
 .mypy_cache/
 node_modules/
 .next/
+frontend/.next/
+frontend/node_modules/
 dist/

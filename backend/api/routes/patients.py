@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+import tempfile
+from pathlib import Path
+
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
 from backend.chat.service import answer_patient_question
 from backend.ingestion.models import IngestionResult
-from backend.ingestion.pipeline import ingest_text
+from backend.ingestion.pipeline import ingest_document, ingest_text
 from backend.ingestion.storage import (
     get_active_medications,
     get_all_labs,
@@ -22,6 +25,30 @@ router = APIRouter()
 @router.post("/{patient_id}/documents", response_model=IngestionResult)
 def post_document(patient_id: str, body: DocumentIngestBody) -> IngestionResult:
     return ingest_text(body.text, patient_id=patient_id, source_label=body.source_label)
+
+
+@router.post("/{patient_id}/documents/file", response_model=IngestionResult)
+async def post_document_file(patient_id: str, file: UploadFile = File(...)) -> IngestionResult:
+    """Upload PDF / DOCX / DOC; text is extracted then ingested like pasted notes."""
+    suffix = Path(file.filename or "").suffix.lower() or ".pdf"
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty file")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp_path = tmp.name
+    try:
+        tmp.write(raw)
+        tmp.flush()
+    finally:
+        tmp.close()
+    try:
+        return ingest_document(
+            tmp_path,
+            patient_id=patient_id,
+            source_label=file.filename or "upload",
+        )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 @router.get("/{patient_id}/timeline")
