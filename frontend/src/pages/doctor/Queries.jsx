@@ -78,24 +78,24 @@ export default function DoctorQueries() {
                 <Inbox className="w-8 h-8 mx-auto mb-2 opacity-50" /> {t("No queries here.")}
               </div>
             )}
-            {threads.map((item) => (
-              <button key={item.id} onClick={() => setSelected(item.id)}
-                      data-testid={`thread-${item.id}`}
+            {threads.map((threadItem) => (
+              <button key={threadItem.id} onClick={() => setSelected(threadItem.id)}
+                      data-testid={`thread-${threadItem.id}`}
                       className={`w-full text-left p-3 rounded-xl transition-colors ${
-                        selected === item.id ? "bg-[#A7E3D4]/40" : "hover:bg-[#F7FFFD]"
+                        selected === threadItem.id ? "bg-[#A7E3D4]/40" : "hover:bg-[#F7FFFD]"
                       }`}>
                 <div className="flex items-center gap-2">
-                  <div className="font-semibold text-sm text-[#2F5D57] flex-1 truncate">{item.patient_name}</div>
-                  <span className="text-[10px] text-[#4B7A73]">{fmtRelative(item.last_message_at)}</span>
+                  <div className="font-semibold text-sm text-[#2F5D57] flex-1 truncate">{threadItem.patient_name}</div>
+                  <span className="text-[10px] text-[#4B7A73]">{fmtRelative(threadItem.last_message_at)}</span>
                 </div>
-                <div className="text-xs text-[#1A332F] truncate">{item.subject}</div>
+                <div className="text-xs text-[#1A332F] truncate">{threadItem.subject}</div>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    item.status === "urgent" ? "bg-[#E05A5A]/15 text-[#E05A5A]" :
-                    item.status === "unanswered" ? "bg-[#E5A832]/15 text-[#A87D0E]" :
-                    item.status === "answered" ? "bg-[#A7E3D4]/40 text-[#2F5D57]" : "bg-[#F7FFFD] text-[#4B7A73]"
-                  }`}>{t(item.status)}</span>
-                  {item.has_attachment && <Paperclip className="w-3 h-3 text-[#4B7A73]" />}
+                    threadItem.status === "urgent" ? "bg-[#E05A5A]/15 text-[#E05A5A]" :
+                    threadItem.status === "unanswered" ? "bg-[#E5A832]/15 text-[#A87D0E]" :
+                    threadItem.status === "answered" ? "bg-[#A7E3D4]/40 text-[#2F5D57]" : "bg-[#F7FFFD] text-[#4B7A73]"
+                  }`}>{t(threadItem.status)}</span>
+                  {threadItem.has_attachment && <Paperclip className="w-3 h-3 text-[#4B7A73]" />}
                 </div>
               </button>
             ))}

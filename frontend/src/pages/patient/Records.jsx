@@ -132,7 +132,11 @@ export default function PatientRecords() {
 
         <TabsContent value="overview" className="pt-6 grid lg:grid-cols-2 gap-6">
           <div className="card-soft p-6 flex items-start gap-4">
-            <img src={patient.avatar} alt={patient.name} className="w-16 h-16 rounded-2xl object-cover ring-4 ring-[#A7E3D4]/40" />
+            <img
+              src="https://images.pexels.com/photos/29707402/pexels-photo-29707402.jpeg"
+              alt={patient.name}
+              className="w-16 h-16 rounded-2xl object-cover ring-4 ring-[#A7E3D4]/40"
+            />
             <div>
               <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{patient.name}</h3>
               <p className="text-sm text-[#4B7A73]">{patient.age} • {patient.sex}</p>

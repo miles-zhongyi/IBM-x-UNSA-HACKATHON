@@ -11,6 +11,14 @@ const DOC_TYPES = [
   { id: "other", label: "Other" },
 ];
 
+const getPatientAvatar = (name, avatar) => {
+  const lower = name?.toLowerCase();
+  if (lower === "dorothy price") return "https://images.pexels.com/photos/29707402/pexels-photo-29707402.jpeg";
+  if (lower === "marcus hale") return "https://images.pexels.com/photos/12477590/pexels-photo-12477590.jpeg";
+  if (lower === "elena ruiz") return "https://images.pexels.com/photos/8297124/pexels-photo-8297124.jpeg";
+  return avatar;
+};
+
 export default function DoctorUpload() {
   const { t } = useUiI18n();
   const [step, setStep] = useState(1);
@@ -99,7 +107,11 @@ export default function DoctorUpload() {
                     patientId === p.id ? "bg-[#5BB9A6] text-white shadow-sm" : "bg-[#F7FFFD] hover:bg-[#A7E3D4]/40"
                   }`}
                 >
-                  <img src={p.avatar} alt={p.name} className="w-10 h-10 rounded-full object-cover" />
+                  <img
+                    src={getPatientAvatar(p.name, p.avatar)}
+                    alt={p.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
                   <div>
                     <div className="font-semibold">{p.name}</div>
                     <div className={`text-xs ${patientId === p.id ? "text-white/80" : "text-[#4B7A73]"}`}>{p.age} • {p.sex}</div>
