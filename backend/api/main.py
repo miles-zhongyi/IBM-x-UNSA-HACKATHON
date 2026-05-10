@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .startup import run_startup
-from .routes import doctor, documents, patients
+from .routes import compat, doctor, documents, patients
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(patients.router, prefix="/api/patients", tags=["patients"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(doctor.router, prefix="/api/doctor", tags=["doctor"])
+app.include_router(compat.router, prefix="/api", tags=["frontend-compat"])
 
 
 @app.get("/api/health")

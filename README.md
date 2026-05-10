@@ -139,13 +139,13 @@ uvicorn backend.api.main:app --reload --port 8000
 
 Details: `backend/README.md`. Tests: `pytest -q` from the repo root.
 
-## Frontend (Next.js 14)
+## Frontend (React + CRACO)
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm start
 ```
 
-Open `http://localhost:3000` (ensure the API is on port 8000, or set `NEXT_PUBLIC_API_BASE` in `frontend/.env.local`).  
+Open `http://localhost:3000` (ensure the API is on port 8000, or set `REACT_APP_BACKEND_URL` in `frontend/.env`).  
 See `frontend/README.md`, `docs/demo_script.md`, and `PROJECT_BRIEF.md`.
