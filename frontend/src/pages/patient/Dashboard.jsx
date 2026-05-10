@@ -92,7 +92,7 @@ export default function PatientDashboard() {
               <FileText className="w-5 h-5 mx-auto text-[#5BB9A6] group-hover:scale-110 transition-transform" />
               <div className="mt-2 text-sm font-semibold text-[#2F5D57]">{t("Documents")}</div>
             </Link>
-            <Link to="/patient/records" data-testid="quick-upload" className="card-soft p-4 text-center group">
+            <Link to="/patient/records#upload" data-testid="quick-upload" className="card-soft p-4 text-center group">
               <UploadCloud className="w-5 h-5 mx-auto text-[#5BB9A6] group-hover:scale-110 transition-transform" />
               <div className="mt-2 text-sm font-semibold text-[#2F5D57]">{t("Upload")}</div>
             </Link>

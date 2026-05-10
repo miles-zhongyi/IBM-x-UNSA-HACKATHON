@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, fmtDate, fileUrl } from "@/lib/api";
-import { ArrowLeft, FileText, Download, Pill, AlertCircle, Stethoscope, Mail, Phone, Sparkles, Calendar } from "lucide-react";
+import { ArrowLeft, FileText, Download, Pill, AlertCircle, Stethoscope, Mail, Phone, Sparkles, Calendar, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUiI18n } from "@/lib/ui-i18n";
 
@@ -31,6 +31,18 @@ export default function PatientProfile() {
   useEffect(() => {
     api.get(`/patients/${id}`).then((r) => setData(r.data));
   }, [id]);
+
+  const deleteDocument = async (documentId) => {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      await api.delete(`/patients/${id}/documents/${documentId}`);
+      // Refresh the data
+      const response = await api.get(`/patients/${id}`);
+      setData(response.data);
+    } catch (error) {
+      alert("Failed to delete document");
+    }
+  };
 
   if (!data) return <div className="card-soft h-64 animate-pulse" />;
 
@@ -125,12 +137,21 @@ export default function PatientProfile() {
                     d.status === "completed" ? "bg-[#A7E3D4]/40 text-[#2F5D57]" : "bg-[#E05A5A]/15 text-[#E05A5A]"
                   }`}>{d.status}</span>
                 </div>
-                {d.status === "completed" && (
-                  <a href={fileUrl(d.storage_path)} target="_blank" rel="noopener noreferrer"
-                     className="w-10 h-10 rounded-xl bg-[#5BB9A6] hover:bg-[#4AA391] flex items-center justify-center transition-colors">
-                    <Download className="w-4 h-4 text-white" />
-                  </a>
-                )}
+                <div className="flex flex-col gap-2">
+                  {d.status === "completed" && (
+                    <a href={fileUrl(d.storage_path)} target="_blank" rel="noopener noreferrer"
+                       className="w-10 h-10 rounded-xl bg-[#5BB9A6] hover:bg-[#4AA391] flex items-center justify-center transition-colors">
+                      <Download className="w-4 h-4 text-white" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => deleteDocument(d.id)}
+                    className="w-10 h-10 rounded-xl bg-[#E05A5A] hover:bg-[#C44A4A] flex items-center justify-center transition-colors"
+                    title="Delete document"
+                  >
+                    <Trash2 className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
