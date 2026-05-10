@@ -2,7 +2,7 @@
 
 from .embedding import embed_query, embed_texts
 from .models import IngestionResult
-from .pipeline import ingest_document, ingest_text
+from .pipeline import ingest_text
 from .storage import (
     get_active_medications,
     get_all_labs,
@@ -18,7 +18,6 @@ __all__ = [
     "embed_query",
     "embed_texts",
     "ingest_text",
-    "ingest_document",
     "IngestionResult",
     "get_active_medications",
     "get_all_labs",

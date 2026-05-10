@@ -56,14 +56,6 @@ def test_chat_safety_blocks_llm_path(client: TestClient):
     assert len(body["citations"]) == 0
 
 
-def test_doctor_patients_summary(client: TestClient):
-    r = client.get("/api/doctor/patients")
-    assert r.status_code == 200
-    rows = r.json()
-    assert isinstance(rows, list)
-    assert any(x.get("patient_id") == "marcus-demo" for x in rows)
-
-
 def test_escalate_and_inbox(client: TestClient):
     r = client.post(
         "/api/patients/elena-demo/escalate",

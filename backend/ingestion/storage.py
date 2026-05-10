@@ -133,6 +133,17 @@ _chroma_client = None
 _chroma_collection = None
 
 
+def _noop_embedding_function():
+    """Prevent ChromaDB from loading sentence-transformers as default embedder."""
+    from chromadb.api.types import EmbeddingFunction, Documents, Embeddings
+
+    class NoopEF(EmbeddingFunction):
+        def __call__(self, input: Documents) -> Embeddings:
+            raise RuntimeError("Use query_embeddings / embeddings params directly")
+
+    return NoopEF()
+
+
 def get_chroma_collection():
     """Lazy-init ChromaDB collection."""
     global _chroma_client, _chroma_collection
@@ -144,6 +155,7 @@ def get_chroma_collection():
         _chroma_collection = _chroma_client.get_or_create_collection(
             name="patient_documents",
             metadata={"hnsw:space": "cosine"},
+            embedding_function=_noop_embedding_function(),
         )
     return _chroma_collection
 

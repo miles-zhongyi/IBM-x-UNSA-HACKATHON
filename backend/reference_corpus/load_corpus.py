@@ -26,10 +26,21 @@ def _client():
     )
 
 
+def _noop_embedding_function():
+    from chromadb.api.types import EmbeddingFunction, Documents, Embeddings
+
+    class NoopEF(EmbeddingFunction):
+        def __call__(self, input: Documents) -> Embeddings:
+            raise RuntimeError("Use query_embeddings / embeddings params directly")
+
+    return NoopEF()
+
+
 def get_reference_collection():
     return _client().get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
+        embedding_function=_noop_embedding_function(),
     )
 
 

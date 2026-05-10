@@ -216,7 +216,7 @@ def translate_if_needed(text: str, source_lang: str, target_lang: str) -> str:
         pass
 
     # Fallback: Featherless AI
-    api_key = os.getenv("FEATHERLESS_API_KEY")
+    api_key = os.getenv("rc_2fe81ea0a236a2bf19bbfe9d4c6bba373a84acf1b636585a0684be2af325c02b")
     if api_key:
         try:
             import requests

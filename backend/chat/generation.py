@@ -169,6 +169,7 @@ def generate_answer(
 
     prompt = f"<|system|>\n{system}\n<|user|>\n{user}\n<|assistant|>\n"
 
+    # Try watsonx first
     try:
         from .watsonx_client import generate_text, watsonx_configured
 
@@ -179,5 +180,37 @@ def generate_answer(
                 return answer, cites
     except Exception:
         pass
+
+    # Fallback: Featherless AI
+    import os
+    api_key = os.getenv("FEATHERLESS_API_KEY")
+    print(f"[generation] watsonx skipped, trying Featherless (key={'set' if api_key else 'MISSING'})")
+    if api_key:
+        try:
+            import requests
+            messages = [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ]
+            resp = requests.post(
+                "https://api.featherless.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "meta-llama/Llama-3.3-70B-Instruct",
+                    "messages": messages,
+                    "max_tokens": 900,
+                    "temperature": 0.2,
+                },
+                timeout=30,
+            )
+            raw = resp.json()["choices"][0]["message"]["content"].strip()
+            answer, cites = _parse_generation_json(raw)
+            if answer:
+                return answer, cites
+        except Exception as e:
+            print(f"[generation] Featherless fallback failed: {e}")
 
     return _fallback_answer(question, bundle)
