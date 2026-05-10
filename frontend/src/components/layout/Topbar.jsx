@@ -80,7 +80,7 @@ export default function Topbar({ role }) {
               className="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-xl hover:bg-[#D9F5EF] transition-colors"
             >
               <img
-                src={profile?.avatar || "https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=200&w=200"}
+                src={role === "patient" ? "https://images.pexels.com/photos/29707402/pexels-photo-29707402.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=200&w=200" : "https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=200&w=200"}
                 alt="profile"
                 className="w-9 h-9 rounded-full object-cover ring-2 ring-[#A7E3D4]"
               />
