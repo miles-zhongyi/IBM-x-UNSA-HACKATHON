@@ -1,19 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { api, fmtDate, fileUrl } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, Pill, AlertCircle, Stethoscope, Sparkles, Mail, Phone, Trash2 } from "lucide-react";
+import { FileText, Download, Pill, AlertCircle, Stethoscope, Sparkles, Mail, Phone, Trash2, Upload, Check, Loader2, X, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "documents", label: "Documents" },
+  { id: "upload", label: "Upload" },
   { id: "timeline", label: "Timeline" },
   { id: "ai", label: "AI Summaries" },
 ];
 
+const DOC_TYPES = [
+  { id: "report", label: "Lab Report" },
+  { id: "scan", label: "Imaging / Scan" },
+  { id: "prescription", label: "Prescription" },
+  { id: "other", label: "Other" },
+];
+
 export default function PatientRecords() {
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [uploadStep, setUploadStep] = useState(1);
+  const [docType, setDocType] = useState("");
+  const [file, setFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState(null); // null | uploading | processing | completed | failed
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     api.get("/patients").then(async (r) => {
@@ -23,6 +40,13 @@ export default function PatientRecords() {
       setData(detail.data);
     });
   }, []);
+
+  useEffect(() => {
+    const hash = location.hash.replace('#', '');
+    if (TABS.some(tab => tab.id === hash)) {
+      setActiveTab(hash);
+    }
+  }, [location.hash]);
 
   if (!data) return <div className="card-soft h-64 animate-pulse" />;
   const { patient, documents } = data;
@@ -45,6 +69,48 @@ export default function PatientRecords() {
     }
   };
 
+  const resetUpload = () => {
+    setUploadStep(1);
+    setDocType("");
+    setFile(null);
+    setUploadProgress(0);
+    setUploadStatus(null);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files?.[0];
+    if (f) setFile(f);
+  };
+
+  const handleUpload = async () => {
+    if (!file || !patient) return;
+    setUploadStatus("uploading");
+    setUploadProgress(0);
+    const fd = new FormData();
+    fd.append("patient_id", patient.id);
+    fd.append("doc_type", docType);
+    fd.append("title", file.name);
+    fd.append("file", file);
+    try {
+      await api.post("/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (e) => setUploadProgress(Math.round((e.loaded / (e.total || 1)) * 100)),
+      });
+      setUploadStatus("processing");
+      setTimeout(() => {
+        setUploadStatus("completed");
+        toast.success("Document uploaded and processed");
+        // Refresh documents
+        api.get(`/patients/${patient.id}`).then((r) => setData(r.data));
+      }, 800);
+    } catch (e) {
+      console.error(e);
+      setUploadStatus("failed");
+      toast.error("Upload failed");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -52,7 +118,7 @@ export default function PatientRecords() {
         <p className="text-[#4B7A73] mt-1">Everything in one place.</p>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-[#D9F5EF] p-1 rounded-xl">
           {TABS.map((t) => (
             <TabsTrigger key={t.id} value={t.id} data-testid={`records-tab-${t.id}`}
@@ -142,6 +208,128 @@ export default function PatientRecords() {
                 </div>
               </div>
             ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="upload" className="pt-6">
+          <div className="card-soft p-8 max-w-2xl">
+            <div className="flex items-center gap-2 mb-6">
+              {[1, 2, 3].map((s, i) => (
+                <div key={s} className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                    uploadStep >= s ? "bg-[#5BB9A6] text-white" : "bg-[#D9F5EF] text-[#4B7A73]"
+                  }`}>{s}</div>
+                  {i < 2 && <div className={`w-12 h-0.5 ${uploadStep > s ? "bg-[#5BB9A6]" : "bg-[#D9F5EF]"}`} />}
+                </div>
+              ))}
+            </div>
+
+            {uploadStep === 1 && (
+              <div>
+                <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Document type</h3>
+                <p className="text-sm text-[#4B7A73] mb-5">What kind of document are you uploading?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {DOC_TYPES.map((t) => (
+                    <button key={t.id} onClick={() => setDocType(t.id)}
+                            className={`p-4 rounded-xl text-left transition-all ${
+                              docType === t.id ? "bg-[#5BB9A6] text-white" : "bg-[#F7FFFD] hover:bg-[#A7E3D4]/40 text-[#2F5D57]"
+                            }`}>
+                      <FileText className="w-5 h-5 mb-2" />
+                      <div className="font-semibold">{t.label}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button disabled={!docType} onClick={() => setUploadStep(2)}
+                          className="px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391] disabled:opacity-50 disabled:cursor-not-allowed">
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {uploadStep === 2 && (
+              <div>
+                <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Upload file</h3>
+                <p className="text-sm text-[#4B7A73] mb-5">Drag and drop, or click to browse.</p>
+                <div
+                  onDrop={onDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-[#A7E3D4] bg-[#F7FFFD] hover:bg-[#D9F5EF]/50 rounded-2xl p-12 flex flex-col items-center text-center cursor-pointer transition-colors group"
+                >
+                  <Upload className="w-12 h-12 text-[#5BB9A6] mb-4 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+                  <div className="font-semibold text-[#2F5D57]">Drop file here or click to browse</div>
+                  <div className="text-xs text-[#4B7A73] mt-1">PDF, JPG, PNG up to 25 MB</div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                  />
+                </div>
+                {file && (
+                  <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-[#A7E3D4]/30">
+                    <FileText className="w-5 h-5 text-[#2F5D57]" />
+                    <div className="flex-1 text-sm text-[#2F5D57]">{file.name}</div>
+                    <button onClick={() => setFile(null)} className="text-[#4B7A73] hover:text-[#E05A5A]"><X className="w-4 h-4" /></button>
+                  </div>
+                )}
+                <div className="mt-6 flex justify-between">
+                  <button onClick={() => setUploadStep(1)} className="px-6 py-2.5 rounded-xl text-[#4B7A73] hover:bg-[#D9F5EF]">Back</button>
+                  <button disabled={!file} onClick={() => { setUploadStep(3); handleUpload(); }}
+                          className="px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391] disabled:opacity-50">
+                    Upload
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {uploadStep === 3 && (
+              <div className="text-center py-6">
+                {uploadStatus === "uploading" && (
+                  <>
+                    <Loader2 className="w-10 h-10 text-[#5BB9A6] animate-spin mx-auto mb-4" />
+                    <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Uploading…</h3>
+                    <div className="mt-4 w-full max-w-md mx-auto h-2 rounded-full bg-[#D9F5EF] overflow-hidden">
+                      <div className="h-full bg-[#5BB9A6] transition-all" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                    <div className="mt-2 text-xs text-[#4B7A73]">{uploadProgress}%</div>
+                  </>
+                )}
+                {uploadStatus === "processing" && (
+                  <>
+                    <Loader2 className="w-10 h-10 text-[#5BB9A6] animate-spin mx-auto mb-4" />
+                    <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Processing with OCR & AI…</h3>
+                    <p className="text-sm text-[#4B7A73] mt-2">Extracting key insights from the document.</p>
+                  </>
+                )}
+                {uploadStatus === "completed" && (
+                  <>
+                    <div className="w-14 h-14 rounded-full bg-[#5BB9A6] mx-auto flex items-center justify-center">
+                      <Check className="w-7 h-7 text-white" />
+                    </div>
+                    <h3 className="mt-4 font-[Outfit] text-xl font-semibold text-[#2F5D57]">Upload complete</h3>
+                    <p className="text-sm text-[#4B7A73] mt-2">Document was added to your record.</p>
+                    <button onClick={resetUpload} className="mt-6 px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391]">
+                      Upload another
+                    </button>
+                  </>
+                )}
+                {uploadStatus === "failed" && (
+                  <>
+                    <div className="w-14 h-14 rounded-full bg-[#E05A5A] mx-auto flex items-center justify-center">
+                      <X className="w-7 h-7 text-white" />
+                    </div>
+                    <h3 className="mt-4 font-[Outfit] text-xl font-semibold text-[#2F5D57]">Upload failed</h3>
+                    <button onClick={handleUpload} className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391]">
+                      <RotateCw className="w-4 h-4" /> Retry
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </TabsContent>
 
