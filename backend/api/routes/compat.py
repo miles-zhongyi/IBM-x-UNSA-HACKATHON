@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -56,6 +57,7 @@ _PATIENT_SEEDS: dict[str, dict[str, Any]] = {
 
 _THREADS: dict[str, dict[str, Any]] = {}
 _MESSAGES: dict[str, list[dict[str, Any]]] = {}
+_CHAT_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 
 
 class QueryCreateBody(BaseModel):
@@ -440,6 +442,14 @@ def ai_suggest_reply(body: AISuggestBody) -> dict[str, str]:
 
 @router.post("/ai/chat")
 def ai_chat(body: AIChatBody) -> dict[str, Any]:
+    cache_key = (body.patient_id, (body.text or "").strip().lower())
+    now = time.time()
+    cached = _CHAT_CACHE.get(cache_key)
+    if cached and now - cached[0] < 300:
+        payload = dict(cached[1])
+        payload["session_id"] = body.session_id or str(uuid4())
+        return payload
+
     try:
         raw = answer_patient_question(body.patient_id, body.text)
     except Exception:
@@ -472,11 +482,13 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
         )
         if len(sources) >= 4:
             break
-    return {
+    payload = {
         "session_id": body.session_id or str(uuid4()),
         "reply": raw.get("answer", ""),
         "sources": sources,
     }
+    _CHAT_CACHE[cache_key] = (now, {k: v for k, v in payload.items() if k != "session_id"})
+    return payload
 
 
 @router.post("/translate")

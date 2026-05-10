@@ -30,21 +30,23 @@ def _format_context_bundle(bundle: dict) -> str:
 
     if bundle.get("reference_snippets"):
         parts.append("\n=== TRUSTED PATIENT EDUCATION SNIPPETS ===\n")
-        for i, hit in enumerate(bundle["reference_snippets"], 1):
+        for i, hit in enumerate(bundle["reference_snippets"][:2], 1):
             meta = hit.get("metadata") or {}
+            text = (hit.get("text", "") or "").replace("\n", " ")[:320]
             parts.append(
-                f"{i}. [{meta.get('title', 'topic')}] {hit.get('text', '')}\n"
+                f"{i}. [{meta.get('title', 'topic')}] {text}\n"
                 f"   Source: {meta.get('source', 'reference corpus')}\n"
             )
 
     if bundle.get("chunks"):
         parts.append("\n=== RELEVANT NOTE EXCERPTS (patient's records) ===\n")
-        for i, hit in enumerate(bundle["chunks"], 1):
+        for i, hit in enumerate(bundle["chunks"][:3], 1):
             meta = hit.get("metadata") or {}
+            text = (hit.get("text", "") or "").replace("\n", " ")[:360]
             parts.append(
                 f"{i}. [Visit: {meta.get('visit_date', 'unknown')}] "
                 f"[document_id={meta.get('document_id')}] [section={meta.get('section')}]\n"
-                f"{hit.get('text', '')}\n"
+                f"{text}\n"
             )
 
     return "\n".join(parts) if parts else "(No retrieved context — say you cannot find it in the records.)"
@@ -197,7 +199,7 @@ def generate_answer(
             from .watsonx_client import generate_text, watsonx_configured
 
             if watsonx_configured():
-                raw = generate_text(prompt, max_new_tokens=700, temperature=0.2)
+                raw = generate_text(prompt, max_new_tokens=420, temperature=0.2)
                 answer, cites = _parse_generation_json(raw)
                 if answer:
                     if not cites:
@@ -245,10 +247,10 @@ def generate_answer(
                         json={
                             "model": model,
                             "messages": messages,
-                            "max_tokens": 900,
+                            "max_tokens": 420,
                             "temperature": 0.2,
                         },
-                        timeout=22,
+                        timeout=10,
                     )
                     if resp.status_code >= 400:
                         print(f"[generation] Featherless {model} failed with status {resp.status_code}")
