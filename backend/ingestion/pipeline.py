@@ -20,7 +20,7 @@ from typing import Optional, Union
 from .chunking import chunk_document
 from .document_reader import SUPPORTED_EXTENSIONS, read_document_safe
 from .embedding import embed_texts
-from .extraction_extensions import extract_structured_from_parsed
+from .translation_0 import extract_structured_from_parsed
 from .models import IngestionResult
 from .storage import save_document, store_chunks_in_chroma, init_db
 
