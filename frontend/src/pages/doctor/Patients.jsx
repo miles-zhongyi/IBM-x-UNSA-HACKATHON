@@ -11,6 +11,14 @@ const FILTERS = [
   { id: "unread", label: "Unread questions" },
 ];
 
+const getPatientAvatar = (name, avatar) => {
+  const lower = name?.toLowerCase();
+  if (lower === "dorothy price") return "https://images.pexels.com/photos/29707402/pexels-photo-29707402.jpeg";
+  if (lower === "marcus hale") return "https://images.pexels.com/photos/12477590/pexels-photo-12477590.jpeg";
+  if (lower === "elena ruiz") return "https://images.pexels.com/photos/8297124/pexels-photo-8297124.jpeg";
+  return avatar;
+};
+
 export default function DoctorPatients() {
   const { t } = useUiI18n();
   const [patients, setPatients] = useState([]);
@@ -86,7 +94,11 @@ export default function DoctorPatients() {
               className="grid grid-cols-12 gap-4 items-center px-6 py-4 border-b border-[#C2EBE1]/50 hover:bg-[#F7FFFD]/70 transition-colors group"
             >
               <div className="col-span-4 flex items-center gap-3">
-                <img src={p.avatar} alt={p.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-[#A7E3D4]/40" />
+                <img
+                  src={getPatientAvatar(p.name, p.avatar)}
+                  alt={p.name}
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-[#A7E3D4]/40"
+                />
                 <div>
                   <div className="font-semibold text-[#2F5D57]">{p.name}</div>
                   <div className="text-xs text-[#4B7A73]">{p.email}</div>

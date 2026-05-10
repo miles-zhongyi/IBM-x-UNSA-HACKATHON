@@ -23,6 +23,13 @@ const InfoChip = ({ icon: Icon, label, value, t }) => (
   </div>
 );
 
+const getPatientAvatar = (name, avatar) => {
+  const lower = name?.toLowerCase();
+  if (lower === "marcus hale") return "https://images.pexels.com/photos/12477590/pexels-photo-12477590.jpeg";
+  if (lower === "elena ruiz") return "https://images.pexels.com/photos/8297124/pexels-photo-8297124.jpeg";
+  return avatar;
+};
+
 export default function PatientProfile() {
   const { t } = useUiI18n();
   const { id } = useParams();
@@ -55,7 +62,7 @@ export default function PatientProfile() {
       </Link>
 
       <div className="card-soft p-6 flex items-center gap-6 flex-wrap">
-        <img src={patient.avatar} alt={patient.name} className="w-20 h-20 rounded-2xl object-cover ring-4 ring-[#A7E3D4]/40" />
+        <img src={getPatientAvatar(patient.name, patient.avatar)} alt={patient.name} className="w-20 h-20 rounded-2xl object-cover ring-4 ring-[#A7E3D4]/40" />
         <div className="flex-1 min-w-[200px]">
           <h1 className="font-[Outfit] text-3xl font-bold text-[#2F5D57]">{patient.name}</h1>
           <div className="text-sm text-[#4B7A73] mt-1">{patient.age} {t("years")} • {patient.sex} • {t(patient.status)}</div>

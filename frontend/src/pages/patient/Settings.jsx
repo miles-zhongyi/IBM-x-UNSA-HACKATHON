@@ -35,7 +35,11 @@ export default function PatientSettings() {
 
       {me && (
         <div className="card-soft p-6 flex items-center gap-6 flex-wrap">
-          <img src={me.avatar} alt={me.name} className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#A7E3D4]/40" />
+          <img
+            src="https://images.pexels.com/photos/29707402/pexels-photo-29707402.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=200&w=200"
+            alt={me.name}
+            className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#A7E3D4]/40"
+          />
           <div>
             <h2 className="font-[Outfit] text-2xl font-bold text-[#2F5D57]">{me.name}</h2>
             <p className="text-sm text-[#4B7A73]">{me.age} • {me.sex}</p>
