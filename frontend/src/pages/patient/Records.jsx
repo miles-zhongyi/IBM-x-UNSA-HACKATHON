@@ -3,6 +3,7 @@ import { api, fmtDate, fileUrl } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Download, Pill, AlertCircle, Stethoscope, Sparkles, Mail, Phone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useUiI18n } from "@/lib/ui-i18n";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -12,6 +13,7 @@ const TABS = [
 ];
 
 export default function PatientRecords() {
+  const { t } = useUiI18n();
   const [data, setData] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -28,7 +30,7 @@ export default function PatientRecords() {
   const { patient, documents } = data;
 
   const deleteDocument = async (docId, title) => {
-    const ok = window.confirm(`Delete "${title || "this document"}" from your record? This cannot be undone.`);
+    const ok = window.confirm(`${t("Delete")} "${title || t("this document")}"? ${t("This cannot be undone.")}`);
     if (!ok) return;
     setDeletingId(docId);
     try {
@@ -37,9 +39,9 @@ export default function PatientRecords() {
         ...prev,
         documents: (prev?.documents || []).filter((d) => d.id !== docId),
       }));
-      toast.success("Document deleted.");
+      toast.success(t("Document deleted."));
     } catch {
-      toast.error("Could not delete document. Please try again.");
+      toast.error(t("Could not delete document. Please try again."));
     } finally {
       setDeletingId(null);
     }
@@ -48,16 +50,16 @@ export default function PatientRecords() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">My Health Records</h1>
-        <p className="text-[#4B7A73] mt-1">Everything in one place.</p>
+        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">{t("My Health Records")}</h1>
+        <p className="text-[#4B7A73] mt-1">{t("Everything in one place.")}</p>
       </div>
 
       <Tabs defaultValue="overview">
         <TabsList className="bg-[#D9F5EF] p-1 rounded-xl">
-          {TABS.map((t) => (
-            <TabsTrigger key={t.id} value={t.id} data-testid={`records-tab-${t.id}`}
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id} data-testid={`records-tab-${tab.id}`}
                          className="px-4 py-1.5 rounded-lg text-sm font-medium data-[state=active]:bg-[#5BB9A6] data-[state=active]:text-white text-[#4B7A73]">
-              {t.label}
+              {t(tab.label)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -78,32 +80,32 @@ export default function PatientRecords() {
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 rounded-xl bg-[#F7FFFD]">
                 <Pill className="w-4 h-4 text-[#5BB9A6] mb-1.5" />
-                <div className="text-xs text-[#4B7A73] uppercase tracking-wider">Meds</div>
+                <div className="text-xs text-[#4B7A73] uppercase tracking-wider">{t("Meds")}</div>
                 <div className="text-sm font-semibold text-[#2F5D57]">{patient.medications.length}</div>
               </div>
               <div className="p-3 rounded-xl bg-[#F7FFFD]">
                 <AlertCircle className="w-4 h-4 text-[#E5A832] mb-1.5" />
-                <div className="text-xs text-[#4B7A73] uppercase tracking-wider">Allergies</div>
+                <div className="text-xs text-[#4B7A73] uppercase tracking-wider">{t("Allergies")}</div>
                 <div className="text-sm font-semibold text-[#2F5D57]">{patient.allergies.length}</div>
               </div>
               <div className="p-3 rounded-xl bg-[#F7FFFD]">
                 <Stethoscope className="w-4 h-4 text-[#2F5D57] mb-1.5" />
-                <div className="text-xs text-[#4B7A73] uppercase tracking-wider">Conditions</div>
+                <div className="text-xs text-[#4B7A73] uppercase tracking-wider">{t("Conditions")}</div>
                 <div className="text-sm font-semibold text-[#2F5D57]">{patient.conditions.length}</div>
               </div>
             </div>
             <div className="mt-4 space-y-3">
               <div>
-                <div className="text-xs uppercase tracking-wider text-[#4B7A73]">Medications</div>
-                <div className="text-sm text-[#1A332F]">{patient.medications.join(", ") || "None"}</div>
+                <div className="text-xs uppercase tracking-wider text-[#4B7A73]">{t("Medications")}</div>
+                <div className="text-sm text-[#1A332F]">{patient.medications.join(", ") || t("None")}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider text-[#4B7A73]">Allergies</div>
-                <div className="text-sm text-[#1A332F]">{patient.allergies.join(", ") || "None"}</div>
+                <div className="text-xs uppercase tracking-wider text-[#4B7A73]">{t("Allergies")}</div>
+                <div className="text-sm text-[#1A332F]">{patient.allergies.join(", ") || t("None")}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider text-[#4B7A73]">Conditions</div>
-                <div className="text-sm text-[#1A332F]">{patient.conditions.join(", ") || "None"}</div>
+                <div className="text-xs uppercase tracking-wider text-[#4B7A73]">{t("Conditions")}</div>
+                <div className="text-sm text-[#1A332F]">{patient.conditions.join(", ") || t("None")}</div>
               </div>
             </div>
           </div>
@@ -112,7 +114,7 @@ export default function PatientRecords() {
         <TabsContent value="documents" className="pt-6">
           <div className="grid sm:grid-cols-2 gap-4">
             {documents.length === 0 && (
-              <div className="col-span-2 card-soft p-10 text-center text-[#4B7A73]">No documents yet. Your doctor will upload reports here.</div>
+              <div className="col-span-2 card-soft p-10 text-center text-[#4B7A73]">{t("No documents yet. Your doctor will upload reports here.")}</div>
             )}
             {documents.map((d) => (
               <div key={d.id} className="card-soft p-5 flex items-start gap-4">
@@ -134,7 +136,7 @@ export default function PatientRecords() {
                     type="button"
                     onClick={() => deleteDocument(d.id, d.title)}
                     disabled={deletingId === d.id}
-                    title="Delete this record"
+                    title={t("Delete this record")}
                     className="w-10 h-10 rounded-xl bg-[#FCE9E9] hover:bg-[#F8D3D3] disabled:opacity-50 flex items-center justify-center transition-colors"
                   >
                     <Trash2 className="w-4 h-4 text-[#B84040]" />
@@ -148,7 +150,7 @@ export default function PatientRecords() {
         <TabsContent value="timeline" className="pt-6">
           <div className="card-soft p-6">
             <ol className="border-l-2 border-[#A7E3D4] pl-6 space-y-6">
-              {documents.length === 0 && <li className="text-sm text-[#4B7A73]">Your timeline will appear here.</li>}
+              {documents.length === 0 && <li className="text-sm text-[#4B7A73]">{t("Your timeline will appear here.")}</li>}
               {documents.map((d) => (
                 <li key={d.id} className="relative">
                   <span className="absolute -left-[33px] top-1 w-3.5 h-3.5 rounded-full bg-[#5BB9A6] ring-4 ring-[#D9F5EF]" />
@@ -164,10 +166,10 @@ export default function PatientRecords() {
           <div className="card-soft p-6">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-5 h-5 text-[#5BB9A6]" />
-              <h3 className="font-[Outfit] text-lg font-semibold text-[#2F5D57]">In simple terms</h3>
+              <h3 className="font-[Outfit] text-lg font-semibold text-[#2F5D57]">{t("In simple terms")}</h3>
             </div>
             <p className="text-base text-[#1A332F] leading-relaxed">{patient.ai_summary}</p>
-            <p className="mt-3 text-xs text-[#4B7A73] italic">Educational only. Always confirm changes with your doctor.</p>
+            <p className="mt-3 text-xs text-[#4B7A73] italic">{t("Educational only. Always confirm changes with your doctor.")}</p>
           </div>
         </TabsContent>
       </Tabs>

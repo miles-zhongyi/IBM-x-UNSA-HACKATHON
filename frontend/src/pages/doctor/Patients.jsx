@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, fmtRelative } from "@/lib/api";
 import { Search, Filter, ChevronRight } from "lucide-react";
+import { useUiI18n } from "@/lib/ui-i18n";
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -11,6 +12,7 @@ const FILTERS = [
 ];
 
 export default function DoctorPatients() {
+  const { t } = useUiI18n();
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -30,8 +32,8 @@ export default function DoctorPatients() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">Patients</h1>
-        <p className="text-[#4B7A73] mt-1">{patients.length} patient{patients.length !== 1 && "s"} in your care</p>
+        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">{t("Patients")}</h1>
+        <p className="text-[#4B7A73] mt-1">{patients.length} {t("patients in your care")}</p>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -41,7 +43,7 @@ export default function DoctorPatients() {
             data-testid="patients-search-input"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search patients by name…"
+            placeholder={t("Search patients by name…")}
             className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#F7FFFD] border border-[#C2EBE1] text-sm focus:outline-none focus:ring-2 focus:ring-[#5BB9A6]/40 focus:border-[#5BB9A6]"
           />
         </div>
@@ -56,7 +58,7 @@ export default function DoctorPatients() {
                 filter === f.id ? "bg-[#5BB9A6] text-white shadow-sm" : "text-[#4B7A73] hover:text-[#2F5D57]"
               }`}
             >
-              {f.label}
+              {t(f.label)}
             </button>
           ))}
         </div>
@@ -64,17 +66,17 @@ export default function DoctorPatients() {
 
       <div className="card-soft p-0 overflow-hidden">
         <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-[#A7E3D4]/30 border-b border-[#C2EBE1] text-xs uppercase tracking-wider font-semibold text-[#2F5D57]">
-          <div className="col-span-4">Patient</div>
-          <div className="col-span-1">Age</div>
-          <div className="col-span-1">Sex</div>
-          <div className="col-span-3">Last activity</div>
-          <div className="col-span-2 text-center">Pending Q's</div>
-          <div className="col-span-1 text-right">Status</div>
+          <div className="col-span-4">{t("Patient")}</div>
+          <div className="col-span-1">{t("Age")}</div>
+          <div className="col-span-1">{t("Sex")}</div>
+          <div className="col-span-3">{t("Last activity")}</div>
+          <div className="col-span-2 text-center">{t("Pending Q's")}</div>
+          <div className="col-span-1 text-right">{t("Status")}</div>
         </div>
         {loading ? (
-          <div className="px-6 py-12 text-center text-[#4B7A73]">Loading…</div>
+          <div className="px-6 py-12 text-center text-[#4B7A73]">{t("Loading…")}</div>
         ) : patients.length === 0 ? (
-          <div className="px-6 py-12 text-center text-[#4B7A73]">No patients match your filters.</div>
+          <div className="px-6 py-12 text-center text-[#4B7A73]">{t("No patients match your filters.")}</div>
         ) : (
           patients.map((p) => (
             <Link
@@ -99,7 +101,7 @@ export default function DoctorPatients() {
                     {p.pending_questions}
                   </span>
                 ) : (
-                  <span className="text-xs text-[#4B7A73]">—</span>
+                  <span className="text-xs text-[#4B7A73]">{t("—")}</span>
                 )}
               </div>
               <div className="col-span-1 flex items-center justify-end gap-2">
@@ -107,7 +109,7 @@ export default function DoctorPatients() {
                   p.status === "active"
                     ? "bg-[#A7E3D4]/40 text-[#2F5D57] border-[#5BB9A6]/30"
                     : "bg-[#F7FFFD] text-[#4B7A73] border-[#C2EBE1]"
-                }`}>{p.status}</span>
+                }`}>{t(p.status)}</span>
                 <ChevronRight className="w-4 h-4 text-[#4B7A73] opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </Link>

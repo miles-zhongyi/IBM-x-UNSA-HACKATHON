@@ -87,6 +87,7 @@ def answer_patient_question(
     question: str,
     *,
     language: Optional[str] = None,
+    input_language: Optional[str] = None,
     detail_level: str = "full",
 ) -> dict[str, Any]:
     """
@@ -113,6 +114,13 @@ def answer_patient_question(
 
     detected_lang = detect_input_language(question)
     question_en = translate_if_needed(question, source_lang=detected_lang, target_lang="en")
+    # If detection is uncertain (defaults to English) but user explicitly chose a
+    # non-English input language, try one more normalization pass.
+    preferred_input = normalize_preferred_language(input_language) if input_language else "en"
+    if detected_lang == "en" and preferred_input != "en":
+        alt_question_en = translate_if_needed(question, source_lang=preferred_input, target_lang="en")
+        if (alt_question_en or "").strip() and alt_question_en.strip() != question.strip():
+            question_en = alt_question_en
     clarification = _clarify_or_redirect(question_en)
     if clarification:
         preferred = normalize_preferred_language(language)

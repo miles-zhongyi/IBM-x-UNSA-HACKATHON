@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Upload, FileText, Check, Loader2, X, RotateCw } from "lucide-react";
 import { toast } from "sonner";
+import { useUiI18n } from "@/lib/ui-i18n";
 
 const DOC_TYPES = [
   { id: "report", label: "Lab Report" },
@@ -11,6 +12,7 @@ const DOC_TYPES = [
 ];
 
 export default function DoctorUpload() {
+  const { t } = useUiI18n();
   const [step, setStep] = useState(1);
   const [patients, setPatients] = useState([]);
   const [patientId, setPatientId] = useState("");
@@ -51,12 +53,12 @@ export default function DoctorUpload() {
       setStatus("processing");
       setTimeout(() => {
         setStatus("completed");
-        toast.success("Document uploaded and processed");
+        toast.success(t("Document uploaded and processed"));
       }, 800);
     } catch (e) {
       console.error(e);
       setStatus("failed");
-      toast.error("Upload failed");
+      toast.error(t("Upload failed"));
     }
   };
 
@@ -76,8 +78,8 @@ export default function DoctorUpload() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">Upload Documents</h1>
-        <p className="text-[#4B7A73] mt-1">Securely add reports, scans and prescriptions to your patient's record.</p>
+        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">{t("Upload Documents")}</h1>
+        <p className="text-[#4B7A73] mt-1">{t("Securely add reports, scans and prescriptions to your patient's record.")}</p>
       </div>
 
       <div className="card-soft p-8 max-w-3xl">
@@ -85,8 +87,8 @@ export default function DoctorUpload() {
 
         {step === 1 && (
           <div data-testid="step-choose-patient">
-            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Choose a patient</h3>
-            <p className="text-sm text-[#4B7A73] mb-5">Select who this document belongs to.</p>
+            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Choose a patient")}</h3>
+            <p className="text-sm text-[#4B7A73] mb-5">{t("Select who this document belongs to.")}</p>
             <div className="grid sm:grid-cols-2 gap-3">
               {patients.map((p) => (
                 <button
@@ -108,7 +110,7 @@ export default function DoctorUpload() {
             <div className="mt-6 flex justify-end">
               <button data-testid="next-step-1" disabled={!patientId} onClick={() => setStep(2)}
                       className="px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391] disabled:opacity-50 disabled:cursor-not-allowed">
-                Continue
+                {t("Continue")}
               </button>
             </div>
           </div>
@@ -116,25 +118,25 @@ export default function DoctorUpload() {
 
         {step === 2 && (
           <div data-testid="step-doc-type">
-            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Document type</h3>
-            <p className="text-sm text-[#4B7A73] mb-5">What kind of document are you uploading?</p>
+            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Document type")}</h3>
+            <p className="text-sm text-[#4B7A73] mb-5">{t("What kind of document are you uploading?")}</p>
             <div className="grid grid-cols-2 gap-3">
-              {DOC_TYPES.map((t) => (
-                <button key={t.id} onClick={() => setDocType(t.id)}
-                        data-testid={`doctype-${t.id}`}
+              {DOC_TYPES.map((doc) => (
+                <button key={doc.id} onClick={() => setDocType(doc.id)}
+                        data-testid={`doctype-${doc.id}`}
                         className={`p-4 rounded-xl text-left transition-all ${
-                          docType === t.id ? "bg-[#5BB9A6] text-white" : "bg-[#F7FFFD] hover:bg-[#A7E3D4]/40 text-[#2F5D57]"
+                          docType === doc.id ? "bg-[#5BB9A6] text-white" : "bg-[#F7FFFD] hover:bg-[#A7E3D4]/40 text-[#2F5D57]"
                         }`}>
                   <FileText className="w-5 h-5 mb-2" />
-                  <div className="font-semibold">{t.label}</div>
+                  <div className="font-semibold">{t(doc.label)}</div>
                 </button>
               ))}
             </div>
             <div className="mt-6 flex justify-between">
-              <button onClick={() => setStep(1)} className="px-6 py-2.5 rounded-xl text-[#4B7A73] hover:bg-[#D9F5EF]">Back</button>
+              <button onClick={() => setStep(1)} className="px-6 py-2.5 rounded-xl text-[#4B7A73] hover:bg-[#D9F5EF]">{t("Back")}</button>
               <button data-testid="next-step-2" disabled={!docType} onClick={() => setStep(3)}
                       className="px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391] disabled:opacity-50">
-                Continue
+                {t("Continue")}
               </button>
             </div>
           </div>
@@ -142,8 +144,8 @@ export default function DoctorUpload() {
 
         {step === 3 && (
           <div data-testid="step-file">
-            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Upload file</h3>
-            <p className="text-sm text-[#4B7A73] mb-5">Drag and drop, or click to browse.</p>
+            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Upload file")}</h3>
+            <p className="text-sm text-[#4B7A73] mb-5">{t("Drag and drop, or click to browse.")}</p>
             <div
               onDrop={onDrop}
               onDragOver={(e) => e.preventDefault()}
@@ -152,8 +154,8 @@ export default function DoctorUpload() {
               className="border-2 border-dashed border-[#A7E3D4] bg-[#F7FFFD] hover:bg-[#D9F5EF]/50 rounded-2xl p-12 flex flex-col items-center text-center cursor-pointer transition-colors group"
             >
               <Upload className="w-12 h-12 text-[#5BB9A6] mb-4 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
-              <div className="font-semibold text-[#2F5D57]">Drop file here or click to browse</div>
-              <div className="text-xs text-[#4B7A73] mt-1">PDF, JPG, PNG up to 25 MB</div>
+              <div className="font-semibold text-[#2F5D57]">{t("Drop file here or click to browse")}</div>
+              <div className="text-xs text-[#4B7A73] mt-1">{t("PDF, JPG, PNG up to 25 MB")}</div>
               <input
                 ref={fileInputRef}
                 data-testid="file-input"
@@ -171,11 +173,11 @@ export default function DoctorUpload() {
               </div>
             )}
             <div className="mt-6 flex justify-between">
-              <button onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl text-[#4B7A73] hover:bg-[#D9F5EF]">Back</button>
+              <button onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl text-[#4B7A73] hover:bg-[#D9F5EF]">{t("Back")}</button>
               <button data-testid="start-upload-button" disabled={!file}
                       onClick={() => { setStep(4); handleUpload(); }}
                       className="px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391] disabled:opacity-50">
-                Upload
+                {t("Upload")}
               </button>
             </div>
           </div>
@@ -186,7 +188,7 @@ export default function DoctorUpload() {
             {status === "uploading" && (
               <>
                 <Loader2 className="w-10 h-10 text-[#5BB9A6] animate-spin mx-auto mb-4" />
-                <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Uploading…</h3>
+                <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Uploading…")}</h3>
                 <div className="mt-4 w-full max-w-md mx-auto h-2 rounded-full bg-[#D9F5EF] overflow-hidden">
                   <div className="h-full bg-[#5BB9A6] transition-all" style={{ width: `${progress}%` }} />
                 </div>
@@ -196,8 +198,8 @@ export default function DoctorUpload() {
             {status === "processing" && (
               <>
                 <Loader2 className="w-10 h-10 text-[#5BB9A6] animate-spin mx-auto mb-4" />
-                <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Processing with OCR & AI…</h3>
-                <p className="text-sm text-[#4B7A73] mt-2">Extracting key insights from the document.</p>
+                <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Processing with OCR & AI…")}</h3>
+                <p className="text-sm text-[#4B7A73] mt-2">{t("Extracting key insights from the document.")}</p>
               </>
             )}
             {status === "completed" && (
@@ -205,10 +207,10 @@ export default function DoctorUpload() {
                 <div className="w-14 h-14 rounded-full bg-[#5BB9A6] mx-auto flex items-center justify-center">
                   <Check className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="mt-4 font-[Outfit] text-xl font-semibold text-[#2F5D57]">Upload complete</h3>
-                <p className="text-sm text-[#4B7A73] mt-2">Document was added to the patient's record.</p>
+                <h3 className="mt-4 font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Upload complete")}</h3>
+                <p className="text-sm text-[#4B7A73] mt-2">{t("Document was added to the patient's record.")}</p>
                 <button data-testid="upload-another-button" onClick={reset} className="mt-6 px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391]">
-                  Upload another
+                  {t("Upload another")}
                 </button>
               </>
             )}
@@ -217,9 +219,9 @@ export default function DoctorUpload() {
                 <div className="w-14 h-14 rounded-full bg-[#E05A5A] mx-auto flex items-center justify-center">
                   <X className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="mt-4 font-[Outfit] text-xl font-semibold text-[#2F5D57]">Upload failed</h3>
+                <h3 className="mt-4 font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Upload failed")}</h3>
                 <button onClick={handleUpload} className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#5BB9A6] text-white font-medium hover:bg-[#4AA391]">
-                  <RotateCw className="w-4 h-4" /> Retry
+                  <RotateCw className="w-4 h-4" /> {t("Retry")}
                 </button>
               </>
             )}

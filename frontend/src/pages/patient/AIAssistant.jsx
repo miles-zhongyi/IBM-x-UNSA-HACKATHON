@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { Send, Sparkles, Mic, MicOff, Paperclip, MessageSquarePlus, BookOpen, Volume2, Square } from "lucide-react";
 import { toast } from "sonner";
 import TranslateButton from "@/components/TranslateButton";
+import { useUiI18n } from "@/lib/ui-i18n";
 
 const SUGGESTIONS = [
   "Explain my latest report simply",
@@ -15,8 +16,18 @@ const THINKING_STEPS = [
   "Finding relevant records...",
   "Drafting a clear summary...",
 ];
+const VOICE_LANG_MAP = {
+  en: "en-US",
+  es: "es-ES",
+  fr: "fr-FR",
+  de: "de-DE",
+  zh: "zh-CN",
+  ja: "ja-JP",
+  ko: "ko-KR",
+};
 
 export default function AIAssistant() {
+  const { language: selectedLanguage, t } = useUiI18n();
   const [me, setMe] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -90,10 +101,15 @@ export default function AIAssistant() {
     const controller = new AbortController();
     requestControllerRef.current = controller;
     try {
-      const selectedLanguage = localStorage.getItem('inputLanguage') || 'en';
       const r = await api.post(
         "/ai/chat",
-        { patient_id: me.id, session_id: sessionId, text, language: selectedLanguage },
+        {
+          patient_id: me.id,
+          session_id: sessionId,
+          text,
+          language: selectedLanguage,
+          input_language: selectedLanguage,
+        },
         { signal: controller.signal },
       );
       setSessionId(r.data.session_id);
@@ -102,9 +118,9 @@ export default function AIAssistant() {
       setMessages((m) => [...m, aiMsg]);
     } catch (e) {
       if (e?.code === "ERR_CANCELED") {
-        setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: "Response stopped." }]);
+        setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: t("Response stopped.") }]);
       } else {
-        setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: "Sorry, I couldn't reach the assistant. Please try again." }]);
+        setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: t("Sorry, I couldn't reach the assistant. Please try again.") }]);
       }
     } finally {
       requestControllerRef.current = null;
@@ -123,13 +139,13 @@ export default function AIAssistant() {
   const startRecording = async () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported in this browser.");
+      toast.error(t("Speech recognition is not supported in this browser."));
       return;
     }
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = (navigator.language || "en-US");
+      recognition.lang = VOICE_LANG_MAP[selectedLanguage] || (navigator.language || "en-US");
       recognition.interimResults = false;
       recognition.continuous = false;
 
@@ -138,14 +154,14 @@ export default function AIAssistant() {
       recognition.onresult = async (event) => {
         const text = event?.results?.[0]?.[0]?.transcript?.trim() || "";
         if (!text) {
-          toast.error("Couldn't catch that. Please try again.");
+          toast.error(t("Couldn't catch that. Please try again."));
           return;
         }
         await send(text);
       };
 
       recognition.onerror = () => {
-        toast.error("Voice input failed. Please try again.");
+        toast.error(t("Voice input failed. Please try again."));
       };
 
       recognition.onend = () => setRecording(false);
@@ -154,7 +170,7 @@ export default function AIAssistant() {
       recognition.start();
     } catch {
       setRecording(false);
-      toast.error("Microphone access denied or unavailable.");
+      toast.error(t("Microphone access denied or unavailable."));
     }
   };
 
@@ -167,7 +183,7 @@ export default function AIAssistant() {
 
   const speakMessage = (msg) => {
     if (!window.speechSynthesis) {
-      toast.error("Text-to-speech is not supported in this browser.");
+      toast.error(t("Text-to-speech is not supported in this browser."));
       return;
     }
 
@@ -184,7 +200,7 @@ export default function AIAssistant() {
     utterance.onend = () => setPlayingId(null);
     utterance.onerror = () => {
       setPlayingId(null);
-      toast.error("Couldn't play audio");
+      toast.error(t("Couldn't play audio"));
     };
     window.speechSynthesis.speak(utterance);
   };
@@ -201,11 +217,11 @@ export default function AIAssistant() {
       <aside className="card-soft p-5 hidden lg:flex flex-col">
         <div className="flex items-center gap-2 mb-4">
           <BookOpen className="w-5 h-5 text-[#5BB9A6]" />
-          <h3 className="font-[Outfit] text-lg font-semibold text-[#2F5D57]">Chat history</h3>
+          <h3 className="font-[Outfit] text-lg font-semibold text-[#2F5D57]">{t("Chat history")}</h3>
         </div>
         <button data-testid="new-chat-button" onClick={() => { setMessages([]); setSessionId(null); }}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#5BB9A6] text-white text-sm font-medium hover:bg-[#4AA391] transition-colors">
-          <MessageSquarePlus className="w-4 h-4" /> New chat
+          <MessageSquarePlus className="w-4 h-4" /> {t("New chat")}
         </button>
         <div className="mt-4 space-y-2 overflow-y-auto flex-1 -mx-2 px-2">
           {[
@@ -220,7 +236,7 @@ export default function AIAssistant() {
           ))}
         </div>
         <div className="mt-4 text-[10px] text-[#4B7A73] leading-relaxed">
-          AI provides educational information only. It does not diagnose or replace professional advice.
+          {t("AI provides educational information only. It does not diagnose or replace professional advice.")}
         </div>
       </aside>
 
@@ -231,7 +247,7 @@ export default function AIAssistant() {
           </div>
           <div className="flex-1">
             <div className="font-[Outfit] font-semibold text-[#2F5D57]">MyHealthVoice AI</div>
-            <div className="text-xs text-[#4B7A73]">Speaks your language · educational only</div>
+            <div className="text-xs text-[#4B7A73]">{t("Speaks your language · educational only")}</div>
           </div>
         </header>
 
@@ -241,15 +257,15 @@ export default function AIAssistant() {
               <div className="inline-flex w-16 h-16 rounded-2xl bg-[#A7E3D4]/40 items-center justify-center">
                 <Sparkles className="w-7 h-7 text-[#5BB9A6]" />
               </div>
-              <h3 className="mt-4 font-[Outfit] text-2xl font-bold text-[#2F5D57]">How can I help you today?</h3>
-              <p className="text-sm text-[#4B7A73] mt-1">Type or tap the mic — I'll reply in the language you use.</p>
+              <h3 className="mt-4 font-[Outfit] text-2xl font-bold text-[#2F5D57]">{t("How can I help you today?")}</h3>
+              <p className="text-sm text-[#4B7A73] mt-1">{t("Type or tap the mic — I'll reply in the language you use.")}</p>
               <div className="mt-6 flex flex-wrap gap-2 justify-center">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} data-testid={`suggestion-${s.replace(/\s+/g, "-").toLowerCase()}`}
                           onClick={() => send(s)}
                           disabled={thinking}
                           className="px-4 py-2 rounded-full bg-[#F7FFFD] border border-[#A7E3D4] text-sm text-[#2F5D57] hover:bg-[#D9F5EF] transition-colors">
-                    {s}
+                    {t(s)}
                   </button>
                 ))}
               </div>
@@ -282,7 +298,7 @@ export default function AIAssistant() {
                             key={`${m.id}-c-${idx}`}
                             onClick={() => toggleCitation(m.id, idx)}
                             className="text-[10px] px-2 py-0.5 rounded-full bg-[#A7E3D4]/30 hover:bg-[#A7E3D4]/60 text-[#2F5D57]"
-                            title="Show source excerpt"
+                        title={t("Show source excerpt")}
                           >
                             {label}
                           </button>
@@ -309,7 +325,7 @@ export default function AIAssistant() {
           {thinking && (
             <div className="flex justify-start">
               <div className="bg-[#F7FFFD] border border-[#C2EBE1] rounded-2xl rounded-tl-sm p-4">
-                <div className="text-xs text-[#4B7A73] mb-1">{THINKING_STEPS[thinkingStepIdx]}</div>
+                <div className="text-xs text-[#4B7A73] mb-1">{t(THINKING_STEPS[thinkingStepIdx])}</div>
                 <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
               </div>
             </div>

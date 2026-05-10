@@ -3,6 +3,7 @@ import { api, fmtRelative } from "@/lib/api";
 import { Paperclip, Sparkles, Send, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import TranslateButton from "@/components/TranslateButton";
+import { useUiI18n } from "@/lib/ui-i18n";
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -13,6 +14,7 @@ const FILTERS = [
 ];
 
 export default function DoctorQueries() {
+  const { t } = useUiI18n();
   const [filter, setFilter] = useState("all");
   const [threads, setThreads] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -42,7 +44,7 @@ export default function DoctorQueries() {
     const r = await api.get(`/queries/${selected}`);
     setThread(r.data);
     loadThreads();
-    toast.success("Reply sent");
+    toast.success(t("Reply sent"));
   };
 
   const aiSuggest = async () => {
@@ -56,8 +58,8 @@ export default function DoctorQueries() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">Patient Queries</h1>
-        <p className="text-[#4B7A73] mt-1">Reply to questions from your patients.</p>
+        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">{t("Patient Queries")}</h1>
+        <p className="text-[#4B7A73] mt-1">{t("Reply to questions from your patients.")}</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 h-[calc(100vh-220px)]">
@@ -67,13 +69,13 @@ export default function DoctorQueries() {
               <button key={f.id} data-testid={`query-filter-${f.id}`} onClick={() => setFilter(f.id)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                         filter === f.id ? "bg-[#5BB9A6] text-white" : "bg-[#F7FFFD] text-[#4B7A73] hover:text-[#2F5D57]"
-                      }`}>{f.label}</button>
+                      }`}>{t(f.label)}</button>
             ))}
           </div>
           <div className="overflow-y-auto flex-1 -mx-2 px-2 space-y-1">
             {threads.length === 0 && (
               <div className="text-center py-12 text-[#4B7A73]">
-                <Inbox className="w-8 h-8 mx-auto mb-2 opacity-50" /> No queries here.
+                <Inbox className="w-8 h-8 mx-auto mb-2 opacity-50" /> {t("No queries here.")}
               </div>
             )}
             {threads.map((t) => (
@@ -92,7 +94,7 @@ export default function DoctorQueries() {
                     t.status === "urgent" ? "bg-[#E05A5A]/15 text-[#E05A5A]" :
                     t.status === "unanswered" ? "bg-[#E5A832]/15 text-[#A87D0E]" :
                     t.status === "answered" ? "bg-[#A7E3D4]/40 text-[#2F5D57]" : "bg-[#F7FFFD] text-[#4B7A73]"
-                  }`}>{t.status}</span>
+                  }`}>{t(t.status)}</span>
                   {t.has_attachment && <Paperclip className="w-3 h-3 text-[#4B7A73]" />}
                 </div>
               </button>
@@ -102,7 +104,7 @@ export default function DoctorQueries() {
 
         <div className="card-soft p-0 lg:col-span-2 flex flex-col overflow-hidden">
           {!thread ? (
-            <div className="flex-1 flex items-center justify-center text-[#4B7A73]">Select a conversation to view it</div>
+            <div className="flex-1 flex items-center justify-center text-[#4B7A73]">{t("Select a conversation to view it")}</div>
           ) : (
             <>
               <div className="px-6 py-4 border-b border-[#C2EBE1]/60">
@@ -133,17 +135,17 @@ export default function DoctorQueries() {
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   rows={3}
-                  placeholder="Write your reply…"
+                  placeholder={t("Write your reply…")}
                   className="w-full p-3 rounded-xl bg-[#F7FFFD] border border-[#C2EBE1] text-sm focus:outline-none focus:ring-2 focus:ring-[#5BB9A6]/40"
                 />
                 <div className="flex items-center justify-between">
                   <button data-testid="ai-suggest-button" onClick={aiSuggest} disabled={suggesting}
                           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#A7E3D4]/40 hover:bg-[#A7E3D4]/70 text-[#2F5D57] text-xs font-medium transition-colors">
-                    <Sparkles className="w-3.5 h-3.5" /> {suggesting ? "Drafting…" : "AI suggest reply"}
+                    <Sparkles className="w-3.5 h-3.5" /> {suggesting ? t("Drafting…") : t("AI suggest reply")}
                   </button>
                   <button data-testid="send-reply-button" onClick={sendReply}
                           className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[#5BB9A6] text-white text-sm font-medium hover:bg-[#4AA391]">
-                    <Send className="w-3.5 h-3.5" /> Send
+                    <Send className="w-3.5 h-3.5" /> {t("Send")}
                   </button>
                 </div>
               </div>

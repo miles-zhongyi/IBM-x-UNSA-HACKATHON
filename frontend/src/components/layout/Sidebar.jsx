@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useUiI18n } from "@/lib/ui-i18n";
 
 const doctorNav = [
   { to: "/doctor/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -33,6 +34,7 @@ const patientNav = [
 
 export default function Sidebar({ role }) {
   const [collapsed, setCollapsed] = useState(false);
+  const { t } = useUiI18n();
   const items = role === "doctor" ? doctorNav : patientNav;
   const Icon = role === "doctor" ? Stethoscope : HeartPulse;
 
@@ -51,7 +53,7 @@ export default function Sidebar({ role }) {
         {!collapsed && (
           <div>
             <div className="font-[Outfit] font-bold text-[#2F5D57] text-lg leading-tight">MyHealthVoice AI</div>
-            <div className="text-xs text-[#4B7A73] capitalize">{role} Portal</div>
+            <div className="text-xs text-[#4B7A73] capitalize">{role} {t("Portal")}</div>
           </div>
         )}
       </div>
@@ -72,7 +74,7 @@ export default function Sidebar({ role }) {
             }
           >
             <it.icon className="w-5 h-5 shrink-0" strokeWidth={1.7} />
-            {!collapsed && <span>{it.label}</span>}
+            {!collapsed && <span>{t(it.label)}</span>}
           </NavLink>
         ))}
       </nav>
@@ -84,7 +86,7 @@ export default function Sidebar({ role }) {
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-[#4B7A73] hover:bg-[#D9F5EF] transition-colors"
         >
           <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />
-          {!collapsed && <span>Collapse</span>}
+          {!collapsed && <span>{t("Collapse")}</span>}
         </button>
         {!collapsed && (
           <NavLink
@@ -93,7 +95,7 @@ export default function Sidebar({ role }) {
             className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-[#2F5D57] bg-[#A7E3D4]/40 hover:bg-[#A7E3D4]/70 transition-colors"
           >
             <Activity className="w-3.5 h-3.5" />
-            Switch Portal
+            {t("Switch Portal")}
           </NavLink>
         )}
       </div>

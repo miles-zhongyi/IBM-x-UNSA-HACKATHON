@@ -2,33 +2,35 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Bell, Lock, Sparkles, Palette } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useUiI18n } from "@/lib/ui-i18n";
 
-const Section = ({ icon: Icon, title, children }) => (
+const Section = ({ icon: Icon, title, children, t }) => (
   <div className="card-soft p-6">
     <div className="flex items-center gap-2 mb-4">
       <Icon className="w-5 h-5 text-[#5BB9A6]" />
-      <h3 className="font-[Outfit] text-lg font-semibold text-[#2F5D57]">{title}</h3>
+      <h3 className="font-[Outfit] text-lg font-semibold text-[#2F5D57]">{t(title)}</h3>
     </div>
     {children}
   </div>
 );
 
-const Toggle = ({ label, defaultOn = false, testId }) => (
+const Toggle = ({ label, defaultOn = false, testId, t }) => (
   <div className="flex items-center justify-between py-2">
-    <span className="text-sm text-[#1A332F]">{label}</span>
+    <span className="text-sm text-[#1A332F]">{t(label)}</span>
     <Switch data-testid={testId} defaultChecked={defaultOn} />
   </div>
 );
 
 export default function DoctorSettings() {
+  const { t } = useUiI18n();
   const [doctor, setDoctor] = useState(null);
   useEffect(() => { api.get("/doctors/me").then((r) => setDoctor(r.data)); }, []);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">Account</h1>
-        <p className="text-[#4B7A73] mt-1">Manage your profile and preferences.</p>
+        <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">{t("Account")}</h1>
+        <p className="text-[#4B7A73] mt-1">{t("Manage your profile and preferences.")}</p>
       </div>
 
       {doctor && (
@@ -48,25 +50,25 @@ export default function DoctorSettings() {
       )}
 
       <div className="grid md:grid-cols-2 gap-6">
-        <Section icon={Bell} title="Notifications">
-          <Toggle label="Email me on new patient questions" defaultOn testId="toggle-email-questions" />
-          <Toggle label="SMS for urgent queries" testId="toggle-sms-urgent" />
-          <Toggle label="Daily digest" defaultOn testId="toggle-daily-digest" />
+        <Section icon={Bell} title="Notifications" t={t}>
+          <Toggle label="Email me on new patient questions" defaultOn testId="toggle-email-questions" t={t} />
+          <Toggle label="SMS for urgent queries" testId="toggle-sms-urgent" t={t} />
+          <Toggle label="Daily digest" defaultOn testId="toggle-daily-digest" t={t} />
         </Section>
-        <Section icon={Lock} title="Security">
-          <Toggle label="Two-factor authentication" defaultOn testId="toggle-2fa" />
-          <Toggle label="Sign out idle sessions" defaultOn testId="toggle-idle-sessions" />
-          <Toggle label="Require biometric for downloads" testId="toggle-biometric" />
+        <Section icon={Lock} title="Security" t={t}>
+          <Toggle label="Two-factor authentication" defaultOn testId="toggle-2fa" t={t} />
+          <Toggle label="Sign out idle sessions" defaultOn testId="toggle-idle-sessions" t={t} />
+          <Toggle label="Require biometric for downloads" testId="toggle-biometric" t={t} />
         </Section>
-        <Section icon={Sparkles} title="AI Preferences">
-          <Toggle label="AI-suggested replies" defaultOn testId="toggle-ai-replies" />
-          <Toggle label="AI-generated patient summaries" defaultOn testId="toggle-ai-summaries" />
-          <Toggle label="Flag inconsistent AI responses" defaultOn testId="toggle-ai-flagging" />
+        <Section icon={Sparkles} title="AI Preferences" t={t}>
+          <Toggle label="AI-suggested replies" defaultOn testId="toggle-ai-replies" t={t} />
+          <Toggle label="AI-generated patient summaries" defaultOn testId="toggle-ai-summaries" t={t} />
+          <Toggle label="Flag inconsistent AI responses" defaultOn testId="toggle-ai-flagging" t={t} />
         </Section>
-        <Section icon={Palette} title="Appearance">
-          <Toggle label="Dense table view" testId="toggle-dense-view" />
-          <Toggle label="Reduce motion" testId="toggle-reduce-motion" />
-          <Toggle label="Show avatars" defaultOn testId="toggle-avatars" />
+        <Section icon={Palette} title="Appearance" t={t}>
+          <Toggle label="Dense table view" testId="toggle-dense-view" t={t} />
+          <Toggle label="Reduce motion" testId="toggle-reduce-motion" t={t} />
+          <Toggle label="Show avatars" defaultOn testId="toggle-avatars" t={t} />
         </Section>
       </div>
     </div>

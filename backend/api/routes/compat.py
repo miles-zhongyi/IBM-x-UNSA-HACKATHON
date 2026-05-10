@@ -94,6 +94,7 @@ class AIChatBody(BaseModel):
     text: str
     session_id: str | None = None
     language: str | None = None
+    input_language: str | None = None
 
 
 class TranslateBody(BaseModel):
@@ -588,7 +589,12 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
         payload["session_id"] = body.session_id or str(uuid4())
         return payload
     try:
-        raw = answer_patient_question(body.patient_id, body.text, language=body.language)
+        raw = answer_patient_question(
+            body.patient_id,
+            body.text,
+            language=body.language,
+            input_language=body.input_language,
+        )
     except Exception:
         timeline = get_patient_timeline(body.patient_id)
         fallback = (

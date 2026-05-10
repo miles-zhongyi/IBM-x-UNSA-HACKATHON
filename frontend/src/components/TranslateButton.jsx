@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { Languages, Loader2 } from "lucide-react";
+import { useUiI18n } from "@/lib/ui-i18n";
 
 export default function TranslateButton({ text, className = "" }) {
   const [translated, setTranslated] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { t } = useUiI18n();
 
   const targetLang = localStorage.getItem('inputLanguage') || 'en';
 
@@ -18,7 +20,7 @@ export default function TranslateButton({ text, className = "" }) {
       const r = await api.post("/translate", { text, target_lang: targetLang });
       setTranslated(r.data.translated || "");
     } catch {
-      setTranslated("(translation unavailable)");
+      setTranslated(t("(translation unavailable)"));
     } finally {
       setLoading(false);
     }
@@ -33,7 +35,7 @@ export default function TranslateButton({ text, className = "" }) {
         className={`mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${className}`}
       >
         {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Languages className="w-3 h-3" />}
-        {translated !== null ? "Show original" : `Translate`}
+        {translated !== null ? t("Show original") : t("Translate")}
       </button>
       {translated !== null && (
         <div className="mt-2 text-sm leading-relaxed italic opacity-90">{translated}</div>

@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { api, fmtRelative } from "@/lib/api";
 import { Users, MessageSquare, AlertTriangle, FileUp, FileX2, TrendingUp, Sparkles, Activity } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { useUiI18n } from "@/lib/ui-i18n";
 
-const StatCard = ({ icon: Icon, label, value, accent }) => (
+const StatCard = ({ icon: Icon, label, value, accent, t }) => (
   <div data-testid={`stat-${label.toLowerCase().replace(/\s+/g, "-")}`} className="card-soft p-6 animate-fade-up">
     <div className="flex items-start justify-between">
       <div>
-        <div className="text-xs uppercase tracking-wider text-[#4B7A73] font-semibold">{label}</div>
+        <div className="text-xs uppercase tracking-wider text-[#4B7A73] font-semibold">{t(label)}</div>
         <div className="mt-3 font-[Outfit] text-4xl font-bold text-[#2F5D57]">{value}</div>
       </div>
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${accent}`}>
@@ -18,6 +19,7 @@ const StatCard = ({ icon: Icon, label, value, accent }) => (
 );
 
 export default function DoctorDashboard() {
+  const { t } = useUiI18n();
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -43,8 +45,8 @@ export default function DoctorDashboard() {
     <div className="space-y-8">
       <div data-testid="dashboard-header" className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">Good morning, Dr. Chen</h1>
-          <p className="text-[#4B7A73] mt-1">Here's an overview of your practice today.</p>
+          <h1 className="font-[Outfit] text-3xl md:text-4xl font-bold text-[#2F5D57]">{t("Good morning, Dr. Chen")}</h1>
+          <p className="text-[#4B7A73] mt-1">{t("Here's an overview of your practice today.")}</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-[#4B7A73] bg-[#D9F5EF] px-3 py-1.5 rounded-full">
           <Activity className="w-4 h-4 text-[#5BB9A6]" /> {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
@@ -52,19 +54,19 @@ export default function DoctorDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
-        <StatCard icon={Users} label="Total Patients" value={stats.total_patients} accent="bg-[#5BB9A6]" />
-        <StatCard icon={MessageSquare} label="Pending Questions" value={stats.pending_questions} accent="bg-[#2F5D57]" />
-        <StatCard icon={AlertTriangle} label="Urgent Queries" value={stats.urgent_queries} accent="bg-[#E05A5A]" />
-        <StatCard icon={FileUp} label="Recent Uploads" value={stats.recent_uploads} accent="bg-[#5BB9A6]" />
-        <StatCard icon={FileX2} label="Failed Uploads" value={stats.failed_uploads} accent="bg-[#E5A832]" />
+        <StatCard icon={Users} label="Total Patients" value={stats.total_patients} accent="bg-[#5BB9A6]" t={t} />
+        <StatCard icon={MessageSquare} label="Pending Questions" value={stats.pending_questions} accent="bg-[#2F5D57]" t={t} />
+        <StatCard icon={AlertTriangle} label="Urgent Queries" value={stats.urgent_queries} accent="bg-[#E05A5A]" t={t} />
+        <StatCard icon={FileUp} label="Recent Uploads" value={stats.recent_uploads} accent="bg-[#5BB9A6]" t={t} />
+        <StatCard icon={FileX2} label="Failed Uploads" value={stats.failed_uploads} accent="bg-[#E5A832]" t={t} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 card-soft p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Patient Activity</h3>
-              <p className="text-xs text-[#4B7A73]">Messages and uploads across the past week</p>
+              <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Patient Activity")}</h3>
+              <p className="text-xs text-[#4B7A73]">{t("Messages and uploads across the past week")}</p>
             </div>
             <div className="flex items-center gap-1.5 text-sm text-[#5BB9A6] font-medium">
               <TrendingUp className="w-4 h-4" /> +12.4%
@@ -85,8 +87,8 @@ export default function DoctorDashboard() {
         </div>
 
         <div className="card-soft p-6">
-          <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Upload Stats</h3>
-          <p className="text-xs text-[#4B7A73] mb-3">Last 7 days</p>
+            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Upload Stats")}</h3>
+            <p className="text-xs text-[#4B7A73] mb-3">{t("Last 7 days")}</p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={trend}>
@@ -105,10 +107,10 @@ export default function DoctorDashboard() {
         <div data-testid="alerts-panel" className="card-soft p-6">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-5 h-5 text-[#E05A5A]" />
-            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Alerts</h3>
+            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Alerts")}</h3>
           </div>
           {alerts.length === 0 ? (
-            <p className="text-sm text-[#4B7A73] py-6 text-center">No alerts. Everything looks good.</p>
+            <p className="text-sm text-[#4B7A73] py-6 text-center">{t("No alerts. Everything looks good.")}</p>
           ) : (
             <ul className="space-y-3">
               {alerts.map((a) => (
@@ -128,7 +130,7 @@ export default function DoctorDashboard() {
         <div data-testid="activity-panel" className="card-soft p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5 text-[#5BB9A6]" />
-            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">Recent Activity</h3>
+            <h3 className="font-[Outfit] text-xl font-semibold text-[#2F5D57]">{t("Recent Activity")}</h3>
           </div>
           <ul className="space-y-3">
             {activity.slice(0, 6).map((a) => (

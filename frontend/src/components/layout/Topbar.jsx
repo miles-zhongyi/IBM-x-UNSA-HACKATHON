@@ -1,6 +1,7 @@
 import { Bell, Search, ChevronDown, Globe } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useUiI18n } from "@/lib/ui-i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +14,7 @@ import {
 export default function Topbar({ role }) {
   const [profile, setProfile] = useState(null);
   const [notifs, setNotifs] = useState([]);
-  const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('inputLanguage') || 'en');
-
-  useEffect(() => {
-    localStorage.setItem('inputLanguage', selectedLanguage);
-  }, [selectedLanguage]);
+  const { language: selectedLanguage, setLanguage: setSelectedLanguage, t } = useUiI18n();
 
   useEffect(() => {
     if (role === "doctor") {
@@ -43,7 +40,7 @@ export default function Topbar({ role }) {
           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#4B7A73]" strokeWidth={1.8} />
           <input
             data-testid="topbar-search-input"
-            placeholder={role === "doctor" ? "Search patients, reports, queries…" : "Search records, reports…"}
+            placeholder={role === "doctor" ? t("Search patients, reports, queries…") : t("Search records, reports…")}
             className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#F7FFFD] border border-[#C2EBE1] text-sm text-[#1A332F] placeholder:text-[#4B7A73]/70 focus:outline-none focus:ring-2 focus:ring-[#5BB9A6]/40 focus:border-[#5BB9A6] transition-shadow"
           />
         </div>
@@ -60,7 +57,7 @@ export default function Topbar({ role }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40 bg-[#F7FFFD] border-[#C2EBE1]">
-            <DropdownMenuLabel className="font-[Outfit] text-[#2F5D57]">Input Language</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-[Outfit] text-[#2F5D57]">{t("Interface Language")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setSelectedLanguage('en')} className={selectedLanguage === 'en' ? 'bg-[#D9F5EF]' : ''}>English</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSelectedLanguage('es')} className={selectedLanguage === 'es' ? 'bg-[#D9F5EF]' : ''}>Español</DropdownMenuItem>
@@ -85,10 +82,10 @@ export default function Topbar({ role }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80 bg-[#F7FFFD] border-[#C2EBE1]">
-            <DropdownMenuLabel className="font-[Outfit] text-[#2F5D57]">Notifications</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-[Outfit] text-[#2F5D57]">{t("Notifications")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {notifs.length === 0 ? (
-              <div className="text-sm text-[#4B7A73] px-3 py-4">You're all caught up.</div>
+              <div className="text-sm text-[#4B7A73] px-3 py-4">{t("You're all caught up.")}</div>
             ) : (
               notifs.map((n) => (
                 <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-0.5 py-2">
@@ -119,13 +116,13 @@ export default function Topbar({ role }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 bg-[#F7FFFD] border-[#C2EBE1]">
-            <DropdownMenuLabel className="font-[Outfit] text-[#2F5D57]">My account</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-[Outfit] text-[#2F5D57]">{t("My account")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Preferences</DropdownMenuItem>
-            <DropdownMenuItem>Help & Support</DropdownMenuItem>
+            <DropdownMenuItem>{t("Profile")}</DropdownMenuItem>
+            <DropdownMenuItem>{t("Preferences")}</DropdownMenuItem>
+            <DropdownMenuItem>{t("Help & Support")}</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-[#E05A5A]">Sign out</DropdownMenuItem>
+            <DropdownMenuItem className="text-[#E05A5A]">{t("Sign out")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
