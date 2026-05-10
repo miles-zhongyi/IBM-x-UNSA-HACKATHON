@@ -155,7 +155,6 @@ def get_chroma_collection():
         _chroma_collection = _chroma_client.get_or_create_collection(
             name="patient_documents",
             metadata={"hnsw:space": "cosine"},
-            embedding_function=_noop_embedding_function(),
         )
     return _chroma_collection
 

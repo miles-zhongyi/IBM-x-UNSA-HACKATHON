@@ -1,6 +1,17 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+except Exception:
+    load_dotenv = None
+
+if load_dotenv is not None:
+    # Load local development secrets from repo root (ignored by git).
+    _REPO_ROOT = Path(__file__).resolve().parents[2]
+    load_dotenv(_REPO_ROOT / ".env", override=False)
 
 # Block all HuggingFace network calls — prevents sentence-transformers/chromadb
 # from hanging when huggingface.co is unreachable.
