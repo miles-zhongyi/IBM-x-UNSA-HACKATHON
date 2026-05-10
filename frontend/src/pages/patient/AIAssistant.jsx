@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Send, Sparkles, Mic, MicOff, Paperclip, MessageSquarePlus, BookOpen, Volume2, Square } from "lucide-react";
 import { toast } from "sonner";
+import TranslateButton from "@/components/TranslateButton";
 
 const SUGGESTIONS = [
   "Explain my latest report simply",
@@ -89,9 +90,10 @@ export default function AIAssistant() {
     const controller = new AbortController();
     requestControllerRef.current = controller;
     try {
+      const selectedLanguage = localStorage.getItem('inputLanguage') || 'en';
       const r = await api.post(
         "/ai/chat",
-        { patient_id: me.id, session_id: sessionId, text },
+        { patient_id: me.id, session_id: sessionId, text, language: selectedLanguage },
         { signal: controller.signal },
       );
       setSessionId(r.data.session_id);
@@ -262,6 +264,7 @@ export default function AIAssistant() {
                   : "bg-[#F7FFFD] border border-[#C2EBE1] text-[#1A332F] rounded-2xl rounded-tl-sm"
               }`}>
                 <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.text}</div>
+                {m.role === "ai" && <TranslateButton text={m.text} />}
                 {m.role === "ai" && (
                   <button data-testid={`speak-${m.id}`} onClick={() => speakMessage(m)}
                           className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#A7E3D4]/40 hover:bg-[#A7E3D4]/70 text-[#2F5D57] text-xs font-medium transition-colors">

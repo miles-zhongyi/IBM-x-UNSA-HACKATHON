@@ -1,4 +1,4 @@
-import { Bell, Search, ChevronDown } from "lucide-react";
+import { Bell, Search, ChevronDown, Globe } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import {
@@ -13,6 +13,11 @@ import {
 export default function Topbar({ role }) {
   const [profile, setProfile] = useState(null);
   const [notifs, setNotifs] = useState([]);
+  const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('inputLanguage') || 'en');
+
+  useEffect(() => {
+    localStorage.setItem('inputLanguage', selectedLanguage);
+  }, [selectedLanguage]);
 
   useEffect(() => {
     if (role === "doctor") {
@@ -45,6 +50,28 @@ export default function Topbar({ role }) {
       </div>
 
       <div className="flex items-center gap-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              data-testid="language-button"
+              className="w-10 h-10 rounded-xl bg-[#D9F5EF] hover:bg-[#A7E3D4]/60 flex items-center justify-center transition-colors"
+            >
+              <Globe className="w-5 h-5 text-[#2F5D57]" strokeWidth={1.7} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40 bg-[#F7FFFD] border-[#C2EBE1]">
+            <DropdownMenuLabel className="font-[Outfit] text-[#2F5D57]">Input Language</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setSelectedLanguage('en')} className={selectedLanguage === 'en' ? 'bg-[#D9F5EF]' : ''}>English</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedLanguage('es')} className={selectedLanguage === 'es' ? 'bg-[#D9F5EF]' : ''}>Español</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedLanguage('fr')} className={selectedLanguage === 'fr' ? 'bg-[#D9F5EF]' : ''}>Français</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedLanguage('de')} className={selectedLanguage === 'de' ? 'bg-[#D9F5EF]' : ''}>Deutsch</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedLanguage('zh')} className={selectedLanguage === 'zh' ? 'bg-[#D9F5EF]' : ''}>中文</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedLanguage('ja')} className={selectedLanguage === 'ja' ? 'bg-[#D9F5EF]' : ''}>日本語</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedLanguage('ko')} className={selectedLanguage === 'ko' ? 'bg-[#D9F5EF]' : ''}>한국어</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

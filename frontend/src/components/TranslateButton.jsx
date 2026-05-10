@@ -6,7 +6,7 @@ export default function TranslateButton({ text, className = "" }) {
   const [translated, setTranslated] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const targetLang = (typeof navigator !== "undefined" ? (navigator.language || "en") : "en").split("-")[0];
+  const targetLang = localStorage.getItem('inputLanguage') || 'en';
 
   const handleClick = async () => {
     if (translated !== null) {

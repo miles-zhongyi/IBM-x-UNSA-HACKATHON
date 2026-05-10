@@ -84,6 +84,7 @@ class AIChatBody(BaseModel):
     patient_id: str
     text: str
     session_id: str | None = None
+    language: str | None = None
 
 
 class TranslateBody(BaseModel):
@@ -344,6 +345,8 @@ def _looks_noisy(text: str) -> bool:
         return False
     if _BINARY_ARTIFACT.search(t):
         return True
+    if re.search(r"[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]", t):
+        return False
     total = len(t)
     alpha_words = re.findall(r"[A-Za-z]{3,}", t)
     if len(alpha_words) < 3 and total > 60:
@@ -519,18 +522,8 @@ def ai_suggest_reply(body: AISuggestBody) -> dict[str, str]:
 
 @router.post("/ai/chat")
 def ai_chat(body: AIChatBody) -> dict[str, Any]:
-    cache_key = (body.patient_id, (body.text or "").strip().lower())
-    now = time.time()
-    cached = _CHAT_CACHE.get(cache_key)
-    if cached and now - cached[0] < 300:
-        payload = dict(cached[1])
-        fixed_reply, _ = _normalize_ai_output({"answer": payload.get("reply", ""), "citations": []})
-        payload["reply"] = fixed_reply
-        payload["session_id"] = body.session_id or str(uuid4())
-        return payload
-
     try:
-        raw = answer_patient_question(body.patient_id, body.text, detail_level="basic")
+        raw = answer_patient_question(body.patient_id, body.text, language=body.language)
     except Exception:
         timeline = get_patient_timeline(body.patient_id)
         fallback = (
@@ -569,7 +562,6 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
         "reply": reply_text,
         "sources": sources,
     }
-    _CHAT_CACHE[cache_key] = (now, {k: v for k, v in payload.items() if k != "session_id"})
     return payload
 
 
