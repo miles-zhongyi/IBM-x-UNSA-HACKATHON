@@ -19,7 +19,13 @@ from .chunking import chunk_document
 from .embedding import embed_texts
 from .translation_0 import extract_structured_from_parsed
 from .models import IngestionResult
-from .storage import save_document, store_chunks_in_chroma, init_db
+from .storage import (
+    save_document,
+    store_chunks_in_chroma,
+    init_db,
+    clean_text_for_ingestion,
+    is_noisy_text,
+)
 
 
 def ingest_text(
@@ -42,7 +48,7 @@ def ingest_text(
     init_db()
 
     # Validate input
-    text = (text or "").strip()
+    text = clean_text_for_ingestion(text or "")
     if len(text) < 50:
         return IngestionResult(
             document_id="",
@@ -53,6 +59,17 @@ def ingest_text(
             extracted_counts={},
             chunks_indexed=0,
             error="Document too short to process (must be at least 50 characters).",
+        )
+    if is_noisy_text(text):
+        return IngestionResult(
+            document_id="",
+            patient_id=patient_id,
+            status="failed",
+            summary="",
+            document_type="unknown",
+            extracted_counts={},
+            chunks_indexed=0,
+            error="Document appears corrupted or not readable text; please upload a clean text/PDF/DOCX file.",
         )
 
     document_id = str(uuid.uuid4())

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, fmtDate, fileUrl } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, Pill, AlertCircle, Stethoscope, Sparkles, Mail, Phone } from "lucide-react";
+import { FileText, Download, Pill, AlertCircle, Stethoscope, Sparkles, Mail, Phone, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -12,6 +13,7 @@ const TABS = [
 
 export default function PatientRecords() {
   const [data, setData] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     api.get("/patients").then(async (r) => {
@@ -24,6 +26,24 @@ export default function PatientRecords() {
 
   if (!data) return <div className="card-soft h-64 animate-pulse" />;
   const { patient, documents } = data;
+
+  const deleteDocument = async (docId, title) => {
+    const ok = window.confirm(`Delete "${title || "this document"}" from your record? This cannot be undone.`);
+    if (!ok) return;
+    setDeletingId(docId);
+    try {
+      await api.delete(`/patients/${patient.id}/documents/${docId}`);
+      setData((prev) => ({
+        ...prev,
+        documents: (prev?.documents || []).filter((d) => d.id !== docId),
+      }));
+      toast.success("Document deleted.");
+    } catch {
+      toast.error("Could not delete document. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -103,12 +123,23 @@ export default function PatientRecords() {
                   <div className="font-semibold text-[#2F5D57] truncate">{d.title}</div>
                   <div className="text-xs text-[#4B7A73]">{d.doc_type} • {fmtDate(d.created_at)}</div>
                 </div>
-                {d.status === "completed" && (
-                  <a href={fileUrl(d.storage_path)} target="_blank" rel="noopener noreferrer"
-                     className="w-10 h-10 rounded-xl bg-[#5BB9A6] hover:bg-[#4AA391] flex items-center justify-center transition-colors">
-                    <Download className="w-4 h-4 text-white" />
-                  </a>
-                )}
+                <div className="flex items-center gap-2">
+                  {d.status === "completed" && (
+                    <a href={fileUrl(d.storage_path)} target="_blank" rel="noopener noreferrer"
+                       className="w-10 h-10 rounded-xl bg-[#5BB9A6] hover:bg-[#4AA391] flex items-center justify-center transition-colors">
+                      <Download className="w-4 h-4 text-white" />
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => deleteDocument(d.id, d.title)}
+                    disabled={deletingId === d.id}
+                    title="Delete this record"
+                    className="w-10 h-10 rounded-xl bg-[#FCE9E9] hover:bg-[#F8D3D3] disabled:opacity-50 flex items-center justify-center transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 text-[#B84040]" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

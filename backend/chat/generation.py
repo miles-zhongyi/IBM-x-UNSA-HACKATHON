@@ -58,9 +58,23 @@ def _format_context_bundle(bundle: dict) -> str:
 
 _JSON_BLOCK = re.compile(r"\{[\s\S]*\}\s*$")
 _ANSWER_FIELD = re.compile(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)"', re.S)
+_ANSWER_FIELD_OPEN = re.compile(r'"answer"\s*:\s*"([\s\S]*)', re.S)
 _WATSONX_SKIP_UNTIL = 0.0
+_WATSONX_LAST_CREDS = ""
 _CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
 _BINARY_ARTIFACT = re.compile(r"(%PDF-|xref|endobj|stream|/Linearized|obj\s*<<)", re.I)
+_ASK_WORSE = re.compile(r"\b(getting worse|worse|declin|deteriorat|progress(ing|ion)?)\b", re.I)
+_ASK_SURVIVAL = re.compile(r"\b(how long (can|could|do) i (live|have)|life expectancy|how much time)\b", re.I)
+_ASK_LAST_VISIT_SUMMARY = re.compile(
+    r"(\b(summarize|summary|explain)\b[\s\w]{0,30}\b(last|latest|recent)\b[\s\w]{0,20}\b(visit|report|note)\b)|"
+    r"(\b(last|latest|recent)\s+(visit|report|note)\b)",
+    re.I,
+)
+_COMMON_WORDS = {
+    "the", "and", "for", "with", "patient", "pain", "plan", "visit", "history",
+    "medication", "medications", "symptom", "support", "family", "care",
+    "reported", "continue", "daily", "week", "hospice", "diagnosis",
+}
 
 
 def _sanitize_text(text: str) -> str:
@@ -83,11 +97,14 @@ def _is_noisy_text(text: str) -> bool:
     punct = sum(1 for c in t if c in ".,;:!?-()[]/%'\"+{}_\\|@#$^&*~`")
     alpha_chars = sum(1 for c in t if c.isalpha())
     digit_chars = sum(1 for c in t if c.isdigit())
+    vowels = sum(1 for c in t.lower() if c in "aeiou")
     non_ascii = sum(1 for c in t if ord(c) > 127)
     weird = sum(1 for c in t if not (c.isalnum() or c.isspace() or c in ".,;:!?-()[]/%'\"+"))
     if (alpha_chars / total) < 0.45 and ((punct + digit_chars) / total) > 0.25:
         return True
     if (non_ascii / total) > 0.12:
+        return True
+    if alpha_chars >= 20 and (vowels / max(alpha_chars, 1)) < 0.20 and (punct / total) > 0.08:
         return True
     if (weird / total) > 0.28 and (spaces / total) < 0.20:
         return True
@@ -104,6 +121,12 @@ def _is_noisy_text(text: str) -> bool:
             low_vowel += 1
     if tokens and low_vowel / len(tokens) > 0.6:
         return True
+    words = re.findall(r"[A-Za-z]{2,}", t.lower())
+    if len(words) >= 10:
+        common = sum(1 for w in words if w in _COMMON_WORDS)
+        symbol_heavy = ((punct + digit_chars + weird) / total) > 0.22
+        if common <= 1 and symbol_heavy:
+            return True
     return False
 
 
@@ -148,6 +171,12 @@ def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
             except Exception:
                 answer = frag.replace('\\"', '"').replace("\\n", "\n")
             return _sanitize_text(str(answer).strip()), []
+        m3 = _ANSWER_FIELD_OPEN.search(text)
+        if m3:
+            frag2 = m3.group(1)
+            frag2 = re.split(r'"\s*,\s*"citations"\s*:', frag2, maxsplit=1)[0]
+            answer2 = frag2.replace('\\"', '"').replace("\\n", "\n").rstrip('"} ,')
+            return _sanitize_text(answer2), []
         return _sanitize_text(text), []
 
 
@@ -203,18 +232,81 @@ def _fallback_answer(question: str, bundle: dict) -> tuple[str, list[dict[str, A
     ranked_chunks.sort(key=lambda x: x[0], reverse=True)
     selected_chunks = [h for _, h in ranked_chunks[:3]]
 
-    for hit in selected_chunks:
-        meta = hit.get("metadata") or {}
-        excerpt = _sanitize_text(hit.get("text") or "")[:320]
-        if not excerpt:
-            continue
-        cites.append(
-            {
-                "visit_date": meta.get("visit_date"),
-                "document_id": meta.get("document_id"),
-                "chunk_excerpt": excerpt,
-            }
+    def _build_cites_from_chunks(limit: int = 2) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for hit in selected_chunks[:limit]:
+            meta = hit.get("metadata") or {}
+            excerpt = _sanitize_text(hit.get("text") or "")[:320]
+            if not excerpt:
+                continue
+            out.append(
+                {
+                    "visit_date": meta.get("visit_date"),
+                    "document_id": meta.get("document_id"),
+                    "chunk_excerpt": excerpt,
+                }
+            )
+        return out
+
+    joined = " ".join((h.get("text") or "") for h in selected_chunks).lower()
+    prognosis_match = re.search(
+        r"(estimated|prognosis)[^\.]{0,100}?(\d+\s*(?:-|to)\s*\d+\s*(?:day|days|week|weeks|month|months))",
+        joined,
+    )
+    if _ASK_WORSE.search(q):
+        worsening = any(
+            k in joined for k in ("progression", "disease progression", "functional decline", "hospice", "poor oral intake")
         )
+        if worsening:
+            msg = "Yes, your recent records suggest your health is worsening, mainly from disease progression and functional decline."
+        else:
+            msg = "I do not see clear evidence of worsening in the latest note alone."
+        if prognosis_match:
+            msg += f" The note also mentions an estimated prognosis of {prognosis_match.group(2)}."
+        return msg, []
+    if _ASK_SURVIVAL.search(q):
+        msg = "I cannot predict exact survival time, but I can share what your latest note says."
+        if prognosis_match:
+            msg += f" It records an estimated prognosis of {prognosis_match.group(2)}."
+        else:
+            msg += " I do not see a clear time estimate in the available text."
+        return msg, []
+    if _ASK_LAST_VISIT_SUMMARY.search(q):
+        if not selected_chunks:
+            return (
+                "I cannot find a clear latest visit note in the available records. "
+                "Please ask your care team or upload the latest report.",
+                [],
+            )
+        first_meta = selected_chunks[0].get("metadata") or {}
+        visit_date = first_meta.get("visit_date")
+        key_points: list[str] = []
+        seen: set[str] = set()
+        for hit in selected_chunks:
+            t = _sanitize_text(hit.get("text") or "")
+            if not t:
+                continue
+            first_sentence = re.split(r"(?<=[\.\!\?])\s+", t, maxsplit=1)[0].strip()
+            if len(first_sentence) < 20:
+                continue
+            norm = first_sentence.lower()
+            if norm in seen:
+                continue
+            seen.add(norm)
+            key_points.append(first_sentence.rstrip("."))
+            if len(key_points) >= 2:
+                break
+        if not key_points:
+            key_points = ["I found the visit note, but the text is limited."]
+        if visit_date:
+            answer = f"Your latest visit ({visit_date}) says: {key_points[0]}."
+        else:
+            answer = f"Your latest visit says: {key_points[0]}."
+        if len(key_points) > 1:
+            answer += f" Also, {key_points[1]}."
+        return answer, _build_cites_from_chunks(limit=2)
+
+    cites.extend(_build_cites_from_chunks(limit=3))
 
     if not lines and selected_chunks:
         if any(w in q for w in ("blood", "lab", "hemoglobin", "a1c", "glucose")):
@@ -230,9 +322,10 @@ def _fallback_answer(question: str, bundle: dict) -> tuple[str, list[dict[str, A
                     continue
                 first_sentence = re.split(r"(?<=[\.\!\?])\s+", t, maxsplit=1)[0]
                 summaries.append((first_sentence or t)[:180])
-            lines.append("From your latest records, this is the key information:")
-            for s in summaries:
-                lines.append(f"- {s}")
+            if summaries:
+                lines.append(f"Based on your latest records: {summaries[0]}")
+            if len(summaries) > 1:
+                lines.append(f"Also: {summaries[1]}")
 
     if bundle.get("reference_snippets") and not lines:
         lines.append("Here is trusted general information (not specific to your chart):")
@@ -278,7 +371,19 @@ def generate_answer(
     prompt = f"<|system|>\n{system}\n<|user|>\n{user}\n<|assistant|>\n"
 
     # Try watsonx first (skip for a while after auth failures to reduce latency)
-    global _WATSONX_SKIP_UNTIL
+    global _WATSONX_SKIP_UNTIL, _WATSONX_LAST_CREDS
+    creds_sig = "|".join(
+        [
+            os.getenv("WATSONX_API_KEY", "")[:16],
+            os.getenv("WATSONX_PROJECT_ID", ""),
+            os.getenv("WATSONX_URL", ""),
+            os.getenv("WATSONX_MODEL_ID", ""),
+        ]
+    )
+    # If credentials were updated during runtime, retry watsonx immediately.
+    if creds_sig != _WATSONX_LAST_CREDS:
+        _WATSONX_SKIP_UNTIL = 0.0
+        _WATSONX_LAST_CREDS = creds_sig
     try:
         if time.time() >= _WATSONX_SKIP_UNTIL:
             from .watsonx_client import generate_text, watsonx_configured

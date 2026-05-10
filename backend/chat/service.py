@@ -18,12 +18,37 @@ _OFF_TOPIC = re.compile(
 _MODEL_QUESTION = re.compile(r"\b(what model|which model|are you (an )?ai|llm)\b", re.I)
 _MOOD_ANXIOUS = re.compile(r"\b(scared|anxious|worried|afraid|nervous|overwhelmed)\b", re.I)
 _MOOD_SAD = re.compile(r"\b(sad|depressed|hopeless|lonely|upset)\b", re.I)
+_SINGLE_WORD_OK = {
+    "pain", "cancer", "report", "summary", "labs", "lab", "meds", "medications",
+    "diagnosis", "prognosis", "nausea", "fever", "cough", "headache", "anxiety",
+    "depression", "glucose", "a1c", "bp", "blood", "visit", "help", "hi", "hello", "hey",
+}
 
 
 def _looks_like_gibberish(text: str) -> bool:
     t = (text or "").strip()
     if len(t) < 3:
         return True
+    tokenized = re.findall(r"[A-Za-z0-9]+", t.lower())
+    if not tokenized:
+        return True
+    if len(tokenized) == 1 and " " not in t:
+        tok = tokenized[0]
+        if tok in _SINGLE_WORD_OK:
+            return False
+        # Repeated-character noise like "eeee", "aaaaaa", "1111"
+        if len(set(tok)) <= 2 and len(tok) >= 3:
+            return True
+        # Very short unknown tokens are usually too vague to answer safely.
+        if len(tok) <= 4:
+            return True
+        # Long single-token inputs are frequently random keyboard noise.
+        if len(tok) >= 8:
+            return True
+    if len(tokenized) <= 2:
+        known = sum(1 for tok in tokenized if tok in _SINGLE_WORD_OK)
+        if known == 0 and sum(len(tok) for tok in tokenized) <= 6:
+            return True
     if ";" in t and " " not in t and len(t) >= 8:
         return True
     if re.search(r"[^\w\s\?\.\,\-]", t) and " " not in t and len(t) >= 10:

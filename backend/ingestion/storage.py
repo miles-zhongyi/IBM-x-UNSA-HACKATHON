@@ -7,6 +7,7 @@ from outside this module.
 """
 
 import sqlite3
+import re
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -15,6 +16,103 @@ import chromadb
 from chromadb.config import Settings
 
 from .models import ExtractedDocument
+
+_CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
+_BINARY_ARTIFACT = re.compile(r"(%PDF-|xref|endobj|stream|/Linearized|obj\s*<<)", re.I)
+_COMMON_WORDS = {
+    "the", "and", "for", "with", "patient", "pain", "plan", "visit", "history",
+    "medication", "medications", "symptom", "support", "family", "care",
+    "reported", "continue", "daily", "week", "hospice", "diagnosis",
+}
+
+
+def clean_text_for_ingestion(text: str) -> str:
+    t = _CTRL.sub(" ", str(text or ""))
+    t = t.replace("\r", "\n")
+    lines = [re.sub(r"\s+", " ", ln).strip() for ln in t.split("\n")]
+    cleaned = [ln for ln in lines if ln]
+    return "\n".join(cleaned).strip()
+
+
+def is_noisy_text(text: str) -> bool:
+    t = re.sub(r"\s+", " ", clean_text_for_ingestion(text))
+    if len(t) < 20:
+        return False
+    if _BINARY_ARTIFACT.search(t):
+        return True
+    total = len(t)
+    alpha_words = re.findall(r"[A-Za-z]{3,}", t)
+    if len(alpha_words) < 3 and total > 60:
+        return True
+    spaces = sum(1 for c in t if c.isspace())
+    punct = sum(1 for c in t if c in ".,;:!?-()[]/%'\"+{}_\\|@#$^&*~`")
+    alpha_chars = sum(1 for c in t if c.isalpha())
+    digit_chars = sum(1 for c in t if c.isdigit())
+    vowels = sum(1 for c in t.lower() if c in "aeiou")
+    non_ascii = sum(1 for c in t if ord(c) > 127)
+    weird = sum(1 for c in t if not (c.isalnum() or c.isspace() or c in ".,;:!?-()[]/%'\"+"))
+    if (alpha_chars / total) < 0.45 and ((punct + digit_chars) / total) > 0.25:
+        return True
+    if (non_ascii / total) > 0.12:
+        return True
+    if alpha_chars >= 20 and (vowels / max(alpha_chars, 1)) < 0.20 and (punct / total) > 0.08:
+        return True
+    if (weird / total) > 0.28 and (spaces / total) < 0.20:
+        return True
+    if (punct / total) > 0.30:
+        return True
+    tokens = re.findall(r"[A-Za-z0-9_-]{6,}", t)
+    low_vowel = 0
+    for tok in tokens:
+        letters = [c for c in tok if c.isalpha()]
+        if not letters:
+            continue
+        vowels = sum(1 for c in letters if c.lower() in "aeiou")
+        if vowels / len(letters) < 0.20:
+            low_vowel += 1
+    if tokens and low_vowel / len(tokens) > 0.6:
+        return True
+    words = re.findall(r"[A-Za-z]{2,}", t.lower())
+    if len(words) >= 10:
+        common = sum(1 for w in words if w in _COMMON_WORDS)
+        symbol_heavy = ((punct + digit_chars + weird) / total) > 0.22
+        if common <= 1 and symbol_heavy:
+            return True
+    return False
+
+
+def delete_document(document_id: str, patient_id: Optional[str] = None) -> bool:
+    """Delete one document from SQLite and related chunks from Chroma."""
+    if not document_id:
+        return False
+    conn = get_conn()
+    try:
+        if patient_id:
+            cur = conn.execute(
+                "DELETE FROM documents WHERE id = ? AND patient_id = ?",
+                (document_id, patient_id),
+            )
+        else:
+            cur = conn.execute(
+                "DELETE FROM documents WHERE id = ?",
+                (document_id,),
+            )
+        deleted = cur.rowcount > 0
+        conn.commit()
+    finally:
+        conn.close()
+
+    try:
+        collection = get_chroma_collection()
+        where: dict[str, object] = {"document_id": document_id}
+        if patient_id:
+            where["patient_id"] = patient_id
+        collection.delete(where=where)
+    except Exception:
+        # SQLite deletion is authoritative; chunk cleanup is best effort.
+        pass
+
+    return deleted
 
 
 # ---------------------------------------------------------------------------
@@ -286,21 +384,33 @@ def store_chunks_in_chroma(
     embeddings: list[list[float]],
 ):
     """Store pre-embedded chunks in ChromaDB."""
-    if not chunks:
+    if not chunks or not embeddings:
         return
 
     collection = get_chroma_collection()
+    valid_chunks: list[dict] = []
+    valid_embeddings: list[list[float]] = []
+    for c, emb in zip(chunks, embeddings):
+        text = clean_text_for_ingestion(c.get("text") or "")
+        if not text or is_noisy_text(text):
+            continue
+        c2 = dict(c)
+        c2["text"] = text
+        valid_chunks.append(c2)
+        valid_embeddings.append(emb)
+    if not valid_chunks:
+        return
 
     # Chroma requires str|int|float|bool in metadata, no None
     cleaned_metadatas = []
-    for c in chunks:
+    for c in valid_chunks:
         meta = {k: v for k, v in c["metadata"].items() if v is not None}
         cleaned_metadatas.append(meta)
 
     collection.add(
-        ids=[c["id"] for c in chunks],
-        embeddings=embeddings,
-        documents=[c["text"] for c in chunks],
+        ids=[c["id"] for c in valid_chunks],
+        embeddings=valid_embeddings,
+        documents=[c["text"] for c in valid_chunks],
         metadatas=cleaned_metadatas,
     )
 
@@ -485,11 +595,14 @@ def search_chunks(
         out.append(
             {
                 "id": results["ids"][0][i],
-                "text": results["documents"][0][i],
+                "text": clean_text_for_ingestion(results["documents"][0][i]),
                 "metadata": meta,
                 "distance": results["distances"][0][i] if results.get("distances") else None,
             }
         )
+        if is_noisy_text(out[-1]["text"]):
+            out.pop()
+            continue
         if len(out) >= n_results:
             break
 

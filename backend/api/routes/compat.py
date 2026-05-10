@@ -12,8 +12,10 @@ from pydantic import BaseModel
 
 from backend.chat.service import answer_patient_question
 from backend.chat.translation_1 import detect_input_language, translate_if_needed
+from backend.ingestion.parser import parse_bytes
 from backend.ingestion.pipeline import ingest_text
 from backend.ingestion.storage import (
+    delete_document,
     get_active_medications,
     get_conn,
     get_diagnoses,
@@ -61,8 +63,15 @@ _THREADS: dict[str, dict[str, Any]] = {}
 _MESSAGES: dict[str, list[dict[str, Any]]] = {}
 _CHAT_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 _ANSWER_FIELD = re.compile(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)"', re.S)
+_ANSWER_FIELD_OPEN = re.compile(r'"answer"\s*:\s*"([\s\S]*)', re.S)
 _CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
 _BINARY_ARTIFACT = re.compile(r"(%PDF-|xref|endobj|stream|/Linearized|obj\s*<<)", re.I)
+_HEALTH_SHORT_TOKENS = {"pain", "labs", "lab", "meds", "help", "visit", "report", "bp", "a1c", "hi", "hey", "hello"}
+_COMMON_WORDS = {
+    "the", "and", "for", "with", "patient", "pain", "plan", "visit", "history",
+    "medication", "medications", "symptom", "support", "family", "care",
+    "reported", "continue", "daily", "week", "hospice", "diagnosis",
+}
 
 
 class QueryCreateBody(BaseModel):
@@ -251,6 +260,14 @@ def get_patient_detail(patient_id: str) -> dict[str, Any]:
     }
 
 
+@router.delete("/patients/{patient_id}/documents/{document_id}")
+def delete_patient_document(patient_id: str, document_id: str) -> dict[str, Any]:
+    deleted = delete_document(document_id=document_id, patient_id=patient_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="document not found")
+    return {"ok": True, "document_id": document_id}
+
+
 @router.get("/dashboard/patient/{patient_id}")
 def get_patient_dashboard(patient_id: str) -> dict[str, Any]:
     patient = _patient_core(patient_id)
@@ -355,11 +372,14 @@ def _looks_noisy(text: str) -> bool:
     punct = sum(1 for c in t if c in ".,;:!?-()[]/%'\"+{}_\\|@#$^&*~`")
     alpha_chars = sum(1 for c in t if c.isalpha())
     digit_chars = sum(1 for c in t if c.isdigit())
+    vowels = sum(1 for c in t.lower() if c in "aeiou")
     non_ascii = sum(1 for c in t if ord(c) > 127)
     weird = sum(1 for c in t if not (c.isalnum() or c.isspace() or c in ".,;:!?-()[]/%'\"+"))
     if (alpha_chars / total) < 0.45 and ((punct + digit_chars) / total) > 0.25:
         return True
     if (non_ascii / total) > 0.12:
+        return True
+    if alpha_chars >= 20 and (vowels / max(alpha_chars, 1)) < 0.20 and (punct / total) > 0.08:
         return True
     if (weird / total) > 0.28 and (spaces / total) < 0.20:
         return True
@@ -376,6 +396,32 @@ def _looks_noisy(text: str) -> bool:
             low_vowel += 1
     if tokens and low_vowel / len(tokens) > 0.6:
         return True
+    words = re.findall(r"[A-Za-z]{2,}", t.lower())
+    if len(words) >= 10:
+        common = sum(1 for w in words if w in _COMMON_WORDS)
+        symbol_heavy = ((punct + digit_chars + weird) / total) > 0.22
+        if common <= 1 and symbol_heavy:
+            return True
+    return False
+
+
+def _is_low_information_query(text: str) -> bool:
+    t = (text or "").strip().lower()
+    tokens = re.findall(r"[a-z0-9]+", t)
+    if not tokens:
+        return True
+    if len(tokens) == 1:
+        tok = tokens[0]
+        if tok in _HEALTH_SHORT_TOKENS:
+            return False
+        if len(set(tok)) <= 2 and len(tok) >= 3:
+            return True
+        if len(tok) <= 4:
+            return True
+    if len(tokens) <= 2:
+        known = sum(1 for tok in tokens if tok in _HEALTH_SHORT_TOKENS)
+        if known == 0 and sum(len(tok) for tok in tokens) <= 6:
+            return True
     return False
 
 
@@ -398,6 +444,15 @@ def _normalize_ai_output(raw: dict[str, Any]) -> tuple[str, list[dict[str, Any]]
                     reply = json.loads(f'"{frag}"')
                 except Exception:
                     reply = _clean_display_text(frag.replace('\\"', '"').replace("\\n", "\n"))
+            else:
+                m2 = _ANSWER_FIELD_OPEN.search(reply)
+                if m2:
+                    frag2 = m2.group(1)
+                    frag2 = re.split(r'"\s*,\s*"citations"\s*:', frag2, maxsplit=1)[0]
+                    reply = _clean_display_text(frag2.replace('\\"', '"').replace("\\n", "\n"))
+                    reply = reply.rstrip('"} ,')
+                else:
+                    reply = "I may have misunderstood that. Could you rephrase your question in one short sentence?"
     cleaned_lines = []
     for line in reply.splitlines():
         if _looks_noisy(line):
@@ -522,6 +577,16 @@ def ai_suggest_reply(body: AISuggestBody) -> dict[str, str]:
 
 @router.post("/ai/chat")
 def ai_chat(body: AIChatBody) -> dict[str, Any]:
+    cache_key = (body.patient_id, (body.text or "").strip().lower())
+    low_info = _is_low_information_query(body.text or "")
+    now = time.time()
+    cached = None if low_info else _CHAT_CACHE.get(cache_key)
+    if cached and now - cached[0] < 300:
+        payload = dict(cached[1])
+        fixed_reply, _ = _normalize_ai_output({"answer": payload.get("reply", ""), "citations": []})
+        payload["reply"] = fixed_reply
+        payload["session_id"] = body.session_id or str(uuid4())
+        return payload
     try:
         raw = answer_patient_question(body.patient_id, body.text, language=body.language)
     except Exception:
@@ -562,6 +627,8 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
         "reply": reply_text,
         "sources": sources,
     }
+    if not low_info:
+        _CHAT_CACHE[cache_key] = (now, {k: v for k, v in payload.items() if k != "session_id"})
     return payload
 
 
@@ -580,12 +647,21 @@ async def upload_document(
     file: UploadFile = File(...),
 ) -> dict[str, Any]:
     raw = await file.read()
-    text = raw.decode("utf-8", errors="ignore").strip()
-    # Avoid indexing binary artifacts (e.g., raw PDF bytes decoded as text).
-    if raw[:5] == b"%PDF-" or _looks_noisy(text):
+    text = ""
+    try:
+        text = parse_bytes(raw, file.filename or title).strip()
+    except Exception:
+        text = raw.decode("utf-8", errors="ignore").strip()
+    # Avoid indexing binary artifacts if parsing failed and decode produced junk.
+    if raw[:5] == b"%PDF-" and not text:
         text = (
             f"{title}\n\nUploaded file: {file.filename or title}. "
-            "This file format could not be parsed into clean text in demo mode."
+            "This PDF could not be parsed into clean text."
+        )
+    elif _looks_noisy(text):
+        text = (
+            f"{title}\n\nUploaded file: {file.filename or title}. "
+            "This file format could not be parsed into clean text."
         )
     if not text:
         text = f"{title}\n\nDocument type: {doc_type}. Uploaded file: {file.filename}."
