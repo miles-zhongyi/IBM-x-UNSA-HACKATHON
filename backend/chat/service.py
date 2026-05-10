@@ -8,7 +8,7 @@ from .generation import generate_answer
 from .intent import Intent, classify_intent
 from .retrieval import retrieve_for_intent
 from .safety import preflight_safety_check
-from .translation_1 import normalize_preferred_language, translate_if_needed
+from .translation_1 import normalize_preferred_language, translate_if_needed, detect_input_language
 
 
 def answer_patient_question(
@@ -40,10 +40,12 @@ def answer_patient_question(
     meds = get_active_medications(patient_id)
     med_names = [m.get("name") or "" for m in meds if m.get("name")]
 
-    intent = classify_intent(question, med_names_in_record=med_names)
-    bundle = retrieve_for_intent(patient_id, question, intent)
+    detected_lang = detect_input_language(question)
+    question_en = translate_if_needed(question, source_lang=detected_lang, target_lang="en")
 
-    answer, cites = generate_answer(question, bundle, detail_level=detail_level or "full")
+    intent = classify_intent(question_en, med_names_in_record=med_names)
+    bundle = retrieve_for_intent(patient_id, question_en, intent)
+    answer, cites = generate_answer(question_en, bundle, detail_level=detail_level or "full")
 
     preferred = normalize_preferred_language(language)
     answer = translate_if_needed(answer, source_lang="en", target_lang=preferred)

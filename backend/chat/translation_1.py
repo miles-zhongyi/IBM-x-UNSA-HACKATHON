@@ -39,7 +39,7 @@ def translate_if_needed(text: str, source_lang: str, target_lang: str) -> str:
         from .watsonx_client import generate_text, watsonx_configured
 
         if not watsonx_configured():
-            return text
+            raise RuntimeError("watsonx not configured")
         tgt = "Spanish" if target_lang == "es" else "English"
         src = "Spanish" if source_lang == "es" else "English"
         prompt = (
@@ -49,4 +49,24 @@ def translate_if_needed(text: str, source_lang: str, target_lang: str) -> str:
         )
         return generate_text(prompt, max_new_tokens=800, temperature=0)
     except Exception:
-        return text
+        pass
+    import os, requests
+    api_key = os.getenv("FEATHERLESS_API_KEY")
+    if api_key:
+        try:
+            tgt = "Spanish" if target_lang == "es" else "English"
+            src = "Spanish" if source_lang == "es" else "English"
+            prompt = f"Translate from {src} to {tgt}. Output only the translation.\n\nTEXT:\n{text}"
+            resp = requests.post(
+                "https://api.featherless.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}",
+                         "Content-Type": "application/json"},
+                json={"model": "meta-llama/Llama-3.3-70B-Instruct",
+                      "messages": [{"role": "user", "content": prompt}],
+                      "max_tokens": 800, "temperature": 0},
+                timeout=20,
+            )
+            return resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception:
+            pass
+    return text
