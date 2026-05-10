@@ -8,7 +8,7 @@ from .generation import generate_answer
 from .intent import Intent, classify_intent
 from .retrieval import retrieve_for_intent
 from .safety import preflight_safety_check
-from .translation import normalize_preferred_language, translate_if_needed
+from .translation_1 import normalize_preferred_language, translate_if_needed
 
 
 def answer_patient_question(
