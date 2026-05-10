@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +51,8 @@ def _format_context_bundle(bundle: dict) -> str:
 
 
 _JSON_BLOCK = re.compile(r"\{[\s\S]*\}\s*$")
+_ANSWER_FIELD = re.compile(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)"', re.S)
+_WATSONX_SKIP_UNTIL = 0.0
 
 
 def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
@@ -83,11 +87,28 @@ def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
                 return str(data.get("answer", text)).strip(), data.get("citations") or []
             except json.JSONDecodeError:
                 pass
+        # Model sometimes returns truncated JSON; recover "answer" field best-effort.
+        m2 = _ANSWER_FIELD.search(text)
+        if m2:
+            frag = m2.group(1)
+            try:
+                answer = json.loads(f'"{frag}"')
+            except Exception:
+                answer = frag.replace('\\"', '"').replace("\\n", "\n")
+            return str(answer).strip(), []
         return text, []
 
 
 def _fallback_answer(question: str, bundle: dict) -> tuple[str, list[dict[str, Any]]]:
     """Deterministic answer when watsonx is unavailable."""
+    q = (question or "").strip().lower()
+    if q in {"hi", "hello", "hey", "m", "yo"} or len(q) <= 2:
+        return (
+            "Hi! I can help explain your records. Try asking something specific like "
+            "\"Explain my latest report\" or \"What changed in my labs?\"",
+            [],
+        )
+
     cites: list[dict[str, Any]] = []
     lines: list[str] = []
 
@@ -169,47 +190,89 @@ def generate_answer(
 
     prompt = f"<|system|>\n{system}\n<|user|>\n{user}\n<|assistant|>\n"
 
-    # Try watsonx first
+    # Try watsonx first (skip for a while after auth failures to reduce latency)
+    global _WATSONX_SKIP_UNTIL
     try:
-        from .watsonx_client import generate_text, watsonx_configured
+        if time.time() >= _WATSONX_SKIP_UNTIL:
+            from .watsonx_client import generate_text, watsonx_configured
 
-        if watsonx_configured():
-            raw = generate_text(prompt, max_new_tokens=900, temperature=0.2)
-            answer, cites = _parse_generation_json(raw)
-            if answer:
-                return answer, cites
-    except Exception:
-        pass
+            if watsonx_configured():
+                raw = generate_text(prompt, max_new_tokens=700, temperature=0.2)
+                answer, cites = _parse_generation_json(raw)
+                if answer:
+                    if not cites:
+                        for hit in (bundle.get("chunks") or [])[:3]:
+                            meta = hit.get("metadata") or {}
+                            cites.append(
+                                {
+                                    "visit_date": meta.get("visit_date"),
+                                    "document_id": meta.get("document_id"),
+                                    "chunk_excerpt": (hit.get("text") or "")[:280],
+                                }
+                            )
+                    return answer, cites
+    except Exception as e:
+        msg = str(e).lower()
+        if "invalidcredentials" in msg or "api key" in msg or "bxnim0415e" in msg:
+            _WATSONX_SKIP_UNTIL = time.time() + 1800  # 30 min
 
     # Fallback: Featherless AI
-    import os
     api_key = os.getenv("FEATHERLESS_API_KEY")
     print(f"[generation] watsonx skipped, trying Featherless (key={'set' if api_key else 'MISSING'})")
     if api_key:
+        models = [
+            m.strip()
+            for m in os.getenv(
+                "FEATHERLESS_MODELS",
+                "meta-llama/Llama-3.3-70B-Instruct,deepseek-ai/DeepSeek-R1-0528",
+            ).split(",")
+            if m.strip()
+        ]
         try:
             import requests
             messages = [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ]
-            resp = requests.post(
-                "https://api.featherless.ai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "meta-llama/Llama-3.3-70B-Instruct",
-                    "messages": messages,
-                    "max_tokens": 900,
-                    "temperature": 0.2,
-                },
-                timeout=30,
-            )
-            raw = resp.json()["choices"][0]["message"]["content"].strip()
-            answer, cites = _parse_generation_json(raw)
-            if answer:
-                return answer, cites
+            for model in models:
+                try:
+                    resp = requests.post(
+                        "https://api.featherless.ai/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": model,
+                            "messages": messages,
+                            "max_tokens": 900,
+                            "temperature": 0.2,
+                        },
+                        timeout=22,
+                    )
+                    if resp.status_code >= 400:
+                        print(f"[generation] Featherless {model} failed with status {resp.status_code}")
+                        continue
+                    payload = resp.json()
+                    raw = ((payload.get("choices") or [{}])[0].get("message") or {}).get("content", "").strip()
+                    if not raw:
+                        continue
+                    answer, cites = _parse_generation_json(raw)
+                    if answer:
+                        if not cites:
+                            # Keep concise but still provide references for UI.
+                            for hit in (bundle.get("chunks") or [])[:3]:
+                                meta = hit.get("metadata") or {}
+                                cites.append(
+                                    {
+                                        "visit_date": meta.get("visit_date"),
+                                        "document_id": meta.get("document_id"),
+                                        "chunk_excerpt": (hit.get("text") or "")[:280],
+                                    }
+                                )
+                        return answer, cites
+                except Exception as me:
+                    print(f"[generation] Featherless model {model} failed: {me}")
         except Exception as e:
             print(f"[generation] Featherless fallback failed: {e}")
 

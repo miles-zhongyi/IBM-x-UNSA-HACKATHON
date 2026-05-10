@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, API } from "@/lib/api";
-import axios from "axios";
+import { api } from "@/lib/api";
 import { Send, Sparkles, Mic, MicOff, Paperclip, MessageSquarePlus, BookOpen, Volume2, Square } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,6 +9,11 @@ const SUGGESTIONS = [
   "What changed in my latest labs?",
   "What does my medication do?",
 ];
+const THINKING_STEPS = [
+  "Reviewing your question...",
+  "Finding relevant records...",
+  "Drafting a clear summary...",
+];
 
 export default function AIAssistant() {
   const [me, setMe] = useState(null);
@@ -18,12 +22,11 @@ export default function AIAssistant() {
   const [thinking, setThinking] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const [playingId, setPlayingId] = useState(null);
+  const [openCitationByMsg, setOpenCitationByMsg] = useState({});
+  const [thinkingStepIdx, setThinkingStepIdx] = useState(0);
   const scrollRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const audioRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     api.get("/patients").then((r) => setMe(r.data?.[0]));
@@ -32,6 +35,49 @@ export default function AIAssistant() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, thinking]);
+
+  useEffect(() => {
+    if (!thinking) {
+      setThinkingStepIdx(0);
+      return undefined;
+    }
+    const t = setInterval(() => {
+      setThinkingStepIdx((v) => (v + 1) % THINKING_STEPS.length);
+    }, 2200);
+    return () => clearInterval(t);
+  }, [thinking]);
+
+  const normalizeReply = (replyRaw, sourceRaw) => {
+    let cleanReply = replyRaw || "";
+    let sources = Array.isArray(sourceRaw) ? sourceRaw : [];
+
+    const trimmed = cleanReply.trim();
+    const maybeJson = trimmed
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/, "");
+    if (maybeJson.startsWith("{") && maybeJson.includes("\"answer\"")) {
+      try {
+        const obj = JSON.parse(maybeJson);
+        if (typeof obj.answer === "string" && obj.answer.trim()) {
+          cleanReply = obj.answer.trim();
+        }
+        if ((!sources || sources.length === 0) && Array.isArray(obj.citations)) {
+          sources = obj.citations.slice(0, 4).map((c, i) => ({
+            id: `c${i + 1}`,
+            index: i + 1,
+            label: `[${i + 1}]`,
+            document_id: c.document_id || null,
+            visit_date: c.visit_date || "unknown date",
+            excerpt: c.chunk_excerpt || c.chunk_text || "",
+          }));
+        }
+      } catch {
+        // Keep raw reply as-is if JSON parse fails.
+      }
+    }
+    return { cleanReply, sources };
+  };
 
   const send = async (text) => {
     if (!text.trim() || !me) return;
@@ -42,7 +88,8 @@ export default function AIAssistant() {
     try {
       const r = await api.post("/ai/chat", { patient_id: me.id, session_id: sessionId, text });
       setSessionId(r.data.session_id);
-      const aiMsg = { id: Date.now() + "a", role: "ai", text: r.data.reply, sources: r.data.sources };
+      const { cleanReply, sources } = normalizeReply(r.data.reply, r.data.sources);
+      const aiMsg = { id: Date.now() + "a", role: "ai", text: cleanReply, sources };
       setMessages((m) => [...m, aiMsg]);
     } catch {
       setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: "Sorry, I couldn't reach the assistant. Please try again." }]);
@@ -52,68 +99,79 @@ export default function AIAssistant() {
   };
 
   const startRecording = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition is not supported in this browser.");
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        if (blob.size === 0) return;
-        setTranscribing(true);
-        try {
-          const fd = new FormData();
-          fd.append("file", blob, "voice.webm");
-          const r = await axios.post(`${API}/voice/transcribe`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-          const text = (r.data.text || "").trim();
-          if (text) {
-            await send(text);
-          } else {
-            toast.error("Couldn't catch that. Please try again.");
-          }
-        } catch (e) {
-          toast.error("Transcription failed");
-        } finally {
-          setTranscribing(false);
+      const recognition = new SpeechRecognition();
+      recognition.lang = (navigator.language || "en-US");
+      recognition.interimResults = false;
+      recognition.continuous = false;
+
+      recognition.onstart = () => setRecording(true);
+
+      recognition.onresult = async (event) => {
+        const text = event?.results?.[0]?.[0]?.transcript?.trim() || "";
+        if (!text) {
+          toast.error("Couldn't catch that. Please try again.");
+          return;
         }
+        await send(text);
       };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setRecording(true);
-    } catch (e) {
-      toast.error("Microphone access denied");
+
+      recognition.onerror = () => {
+        toast.error("Voice input failed. Please try again.");
+      };
+
+      recognition.onend = () => setRecording(false);
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      setRecording(false);
+      toast.error("Microphone access denied or unavailable.");
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
     setRecording(false);
   };
 
-  const speakMessage = async (msg) => {
+  const speakMessage = (msg) => {
+    if (!window.speechSynthesis) {
+      toast.error("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
     if (playingId === msg.id) {
-      audioRef.current?.pause();
+      window.speechSynthesis.cancel();
       setPlayingId(null);
       return;
     }
-    try {
-      const r = await axios.post(`${API}/voice/tts`, { text: msg.text }, { responseType: "blob" });
-      const url = URL.createObjectURL(r.data);
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => { setPlayingId(null); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setPlayingId(null); URL.revokeObjectURL(url); };
-      audio.play();
-      setPlayingId(msg.id);
-    } catch (e) {
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(msg.text || "");
+    utterance.lang = navigator.language || "en-US";
+    utterance.onstart = () => setPlayingId(msg.id);
+    utterance.onend = () => setPlayingId(null);
+    utterance.onerror = () => {
+      setPlayingId(null);
       toast.error("Couldn't play audio");
-    }
+    };
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const toggleCitation = (msgId, idx) => {
+    setOpenCitationByMsg((prev) => ({
+      ...prev,
+      [msgId]: prev[msgId] === idx ? null : idx,
+    }));
   };
 
   return (
@@ -189,23 +247,45 @@ export default function AIAssistant() {
                     {playingId === m.id ? <><Square className="w-3 h-3" /> Stop</> : <><Volume2 className="w-3 h-3" /> Listen</>}
                   </button>
                 )}
-                {m.sources && (
-                  <div className="mt-3 pt-3 border-t border-[#C2EBE1]/50 flex flex-wrap gap-1.5">
-                    {m.sources.map((s, i) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[#A7E3D4]/30 text-[#2F5D57]">
-                        {s}
-                      </span>
-                    ))}
+                {Array.isArray(m.sources) && m.sources.length > 0 && (
+                  <div className="mt-2">
+                    <div className="inline-flex flex-wrap gap-1.5">
+                      {m.sources.map((s, i) => {
+                        const idx = i + 1;
+                        const label = typeof s === "string" ? `[${idx}]` : (s.label || `[${idx}]`);
+                        return (
+                          <button
+                            key={`${m.id}-c-${idx}`}
+                            onClick={() => toggleCitation(m.id, idx)}
+                            className="text-[10px] px-2 py-0.5 rounded-full bg-[#A7E3D4]/30 hover:bg-[#A7E3D4]/60 text-[#2F5D57]"
+                            title="Show source excerpt"
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {openCitationByMsg[m.id] && (
+                      <div className="mt-2 text-[11px] p-2 rounded-lg bg-[#F1FBF8] border border-[#C2EBE1] text-[#2F5D57]">
+                        {(() => {
+                          const selected = m.sources[openCitationByMsg[m.id] - 1];
+                          if (!selected || typeof selected === "string") return selected || "No source details.";
+                          const date = selected.visit_date ? ` (${selected.visit_date})` : "";
+                          const doc = selected.document_id ? `Doc ${selected.document_id.slice(0, 8)}${date}` : `Source${date}`;
+                          return `${doc}: ${selected.excerpt || "No excerpt available."}`;
+                        })()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
           ))}
 
-          {(thinking || transcribing) && (
+          {thinking && (
             <div className="flex justify-start">
               <div className="bg-[#F7FFFD] border border-[#C2EBE1] rounded-2xl rounded-tl-sm p-4">
-                {transcribing && <span className="text-xs text-[#4B7A73] mr-2">Transcribing…</span>}
+                <div className="text-xs text-[#4B7A73] mb-1">{THINKING_STEPS[thinkingStepIdx]}</div>
                 <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
               </div>
             </div>

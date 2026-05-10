@@ -451,14 +451,31 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
         )
         raw = {"answer": fallback, "citations": []}
     sources = []
-    for c in raw.get("citations", []):
-        doc_id = c.get("document_id") or "document"
-        date = c.get("visit_date") or "unknown date"
-        sources.append(f"{doc_id} ({date})")
+    seen: set[tuple[str, str, str]] = set()
+    for i, c in enumerate(raw.get("citations", []), 1):
+        doc_id = str(c.get("document_id") or "")
+        date = str(c.get("visit_date") or "unknown date")
+        excerpt = str(c.get("chunk_text") or c.get("chunk_excerpt") or "").strip()
+        dedupe_key = (doc_id, date, excerpt[:120])
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        sources.append(
+            {
+                "id": f"c{i}",
+                "index": len(sources) + 1,
+                "label": f"[{len(sources) + 1}]",
+                "document_id": doc_id or None,
+                "visit_date": date,
+                "excerpt": excerpt[:280],
+            }
+        )
+        if len(sources) >= 4:
+            break
     return {
         "session_id": body.session_id or str(uuid4()),
         "reply": raw.get("answer", ""),
-        "sources": sources[:5],
+        "sources": sources,
     }
 
 
