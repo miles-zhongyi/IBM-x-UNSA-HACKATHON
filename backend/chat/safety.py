@@ -39,6 +39,11 @@ _DOSAGE_CHANGE = re.compile(
     r"what dose should|taper myself)\b",
     re.I,
 )
+_DISTRESS = re.compile(
+    r"\b(am i (?:gonna|going to) die|will i die|i'm scared|i am scared|"
+    r"no reason to live|hopeless|what's the point of living)\b",
+    re.I,
+)
 
 
 def preflight_safety_check(question: str) -> SafetyCheckResult:
@@ -79,6 +84,17 @@ def preflight_safety_check(question: str) -> SafetyCheckResult:
                 "I cannot tell you to start, stop, or change a medication or dose. "
                 "Please ask your prescribing clinician or pharmacist. "
                 "I can still help you read what your visit notes say about medications.",
+            ),
+        )
+    if _DISTRESS.search(q):
+        return SafetyCheckResult(
+            triggered=True,
+            category="distress",
+            response=t.get(
+                "distress",
+                "I hear that this feels scary right now, and you are not alone. "
+                "I cannot predict exactly what will happen, but I can help explain what your notes say. "
+                "If you feel overwhelmed or unsafe, please contact your care team right away or your local emergency number.",
             ),
         )
 

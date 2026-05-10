@@ -32,7 +32,9 @@ def _format_context_bundle(bundle: dict) -> str:
         parts.append("\n=== TRUSTED PATIENT EDUCATION SNIPPETS ===\n")
         for i, hit in enumerate(bundle["reference_snippets"][:2], 1):
             meta = hit.get("metadata") or {}
-            text = (hit.get("text", "") or "").replace("\n", " ")[:320]
+            text = _sanitize_text(hit.get("text", "") or "")[:320]
+            if _is_noisy_text(text):
+                continue
             parts.append(
                 f"{i}. [{meta.get('title', 'topic')}] {text}\n"
                 f"   Source: {meta.get('source', 'reference corpus')}\n"
@@ -42,7 +44,9 @@ def _format_context_bundle(bundle: dict) -> str:
         parts.append("\n=== RELEVANT NOTE EXCERPTS (patient's records) ===\n")
         for i, hit in enumerate(bundle["chunks"][:3], 1):
             meta = hit.get("metadata") or {}
-            text = (hit.get("text", "") or "").replace("\n", " ")[:360]
+            text = _sanitize_text(hit.get("text", "") or "")[:360]
+            if _is_noisy_text(text):
+                continue
             parts.append(
                 f"{i}. [Visit: {meta.get('visit_date', 'unknown')}] "
                 f"[document_id={meta.get('document_id')}] [section={meta.get('section')}]\n"
@@ -55,6 +59,52 @@ def _format_context_bundle(bundle: dict) -> str:
 _JSON_BLOCK = re.compile(r"\{[\s\S]*\}\s*$")
 _ANSWER_FIELD = re.compile(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)"', re.S)
 _WATSONX_SKIP_UNTIL = 0.0
+_CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
+_BINARY_ARTIFACT = re.compile(r"(%PDF-|xref|endobj|stream|/Linearized|obj\s*<<)", re.I)
+
+
+def _sanitize_text(text: str) -> str:
+    t = _CTRL.sub(" ", str(text or ""))
+    t = t.replace("\r", " ").replace("\n", " ")
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _is_noisy_text(text: str) -> bool:
+    t = _sanitize_text(text)
+    if len(t) < 20:
+        return False
+    if _BINARY_ARTIFACT.search(t):
+        return True
+    total = len(t)
+    alpha_words = re.findall(r"[A-Za-z]{3,}", t)
+    if len(alpha_words) < 3 and total > 60:
+        return True
+    spaces = sum(1 for c in t if c.isspace())
+    punct = sum(1 for c in t if c in ".,;:!?-()[]/%'\"+{}_\\|@#$^&*~`")
+    alpha_chars = sum(1 for c in t if c.isalpha())
+    digit_chars = sum(1 for c in t if c.isdigit())
+    non_ascii = sum(1 for c in t if ord(c) > 127)
+    weird = sum(1 for c in t if not (c.isalnum() or c.isspace() or c in ".,;:!?-()[]/%'\"+"))
+    if (alpha_chars / total) < 0.45 and ((punct + digit_chars) / total) > 0.25:
+        return True
+    if (non_ascii / total) > 0.12:
+        return True
+    if (weird / total) > 0.28 and (spaces / total) < 0.20:
+        return True
+    if (punct / total) > 0.30:
+        return True
+    tokens = re.findall(r"[A-Za-z0-9_-]{6,}", t)
+    low_vowel = 0
+    for tok in tokens:
+        letters = [c for c in tok if c.isalpha()]
+        if not letters:
+            continue
+        vowels = sum(1 for c in letters if c.lower() in "aeiou")
+        if vowels / len(letters) < 0.20:
+            low_vowel += 1
+    if tokens and low_vowel / len(tokens) > 0.6:
+        return True
+    return False
 
 
 def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
@@ -65,7 +115,7 @@ def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
         text = re.sub(r"\s*```$", "", text)
     try:
         data = json.loads(text)
-        answer = str(data.get("answer", "")).strip()
+        answer = _sanitize_text(str(data.get("answer", "")).strip())
         cites = data.get("citations") or []
         if not isinstance(cites, list):
             cites = []
@@ -77,7 +127,7 @@ def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
                 {
                     "visit_date": c.get("visit_date"),
                     "document_id": c.get("document_id"),
-                    "chunk_excerpt": c.get("chunk_excerpt") or c.get("excerpt") or "",
+                    "chunk_excerpt": _sanitize_text(c.get("chunk_excerpt") or c.get("excerpt") or ""),
                 }
             )
         return answer, norm
@@ -86,7 +136,7 @@ def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
         if m:
             try:
                 data = json.loads(m.group(0))
-                return str(data.get("answer", text)).strip(), data.get("citations") or []
+                return _sanitize_text(str(data.get("answer", text)).strip()), data.get("citations") or []
             except json.JSONDecodeError:
                 pass
         # Model sometimes returns truncated JSON; recover "answer" field best-effort.
@@ -97,8 +147,8 @@ def _parse_generation_json(raw: str) -> tuple[str, list[dict[str, Any]]]:
                 answer = json.loads(f'"{frag}"')
             except Exception:
                 answer = frag.replace('\\"', '"').replace("\\n", "\n")
-            return str(answer).strip(), []
-        return text, []
+            return _sanitize_text(str(answer).strip()), []
+        return _sanitize_text(text), []
 
 
 def _fallback_answer(question: str, bundle: dict) -> tuple[str, list[dict[str, Any]]]:
@@ -113,6 +163,15 @@ def _fallback_answer(question: str, bundle: dict) -> tuple[str, list[dict[str, A
 
     cites: list[dict[str, Any]] = []
     lines: list[str] = []
+
+    # Build minimal keyword set to pick relevant chunks
+    raw_tokens = re.findall(r"[a-zA-Z]{3,}", q)
+    stop = {
+        "what", "when", "where", "which", "with", "from", "your", "about",
+        "this", "that", "have", "does", "should", "could", "would", "explain",
+        "latest", "report", "visit", "simply", "please",
+    }
+    q_tokens = {t for t in raw_tokens if t not in stop}
 
     if bundle.get("lab_trend"):
         lines.append("Here is what your saved lab values show over time:")
@@ -132,9 +191,23 @@ def _fallback_answer(question: str, bundle: dict) -> tuple[str, list[dict[str, A
                 }
             )
 
-    for hit in bundle.get("chunks") or []:
+    chunks = bundle.get("chunks") or []
+    ranked_chunks: list[tuple[int, dict]] = []
+    for hit in chunks:
+        clean = _sanitize_text(hit.get("text") or "")
+        if _is_noisy_text(clean):
+            continue
+        text = clean.lower()
+        score = sum(1 for tok in q_tokens if tok in text)
+        ranked_chunks.append((score, {**hit, "text": clean}))
+    ranked_chunks.sort(key=lambda x: x[0], reverse=True)
+    selected_chunks = [h for _, h in ranked_chunks[:3]]
+
+    for hit in selected_chunks:
         meta = hit.get("metadata") or {}
-        excerpt = (hit.get("text") or "")[:320]
+        excerpt = _sanitize_text(hit.get("text") or "")[:320]
+        if not excerpt:
+            continue
         cites.append(
             {
                 "visit_date": meta.get("visit_date"),
@@ -143,11 +216,23 @@ def _fallback_answer(question: str, bundle: dict) -> tuple[str, list[dict[str, A
             }
         )
 
-    if not lines and bundle.get("chunks"):
-        lines.append("Here are the most relevant excerpts from your records:")
-        for hit in bundle["chunks"][:3]:
-            t = (hit.get("text") or "").replace("\n", " ")[:400]
-            lines.append(f"- {t}")
+    if not lines and selected_chunks:
+        if any(w in q for w in ("blood", "lab", "hemoglobin", "a1c", "glucose")):
+            lines.append(
+                "I do not see clear blood test values in your latest note. "
+                "The note is focused on hospice care, symptom control, and support planning."
+            )
+        else:
+            summaries = []
+            for hit in selected_chunks[:2]:
+                t = _sanitize_text(hit.get("text") or "")
+                if not t:
+                    continue
+                first_sentence = re.split(r"(?<=[\.\!\?])\s+", t, maxsplit=1)[0]
+                summaries.append((first_sentence or t)[:180])
+            lines.append("From your latest records, this is the key information:")
+            for s in summaries:
+                lines.append(f"- {s}")
 
     if bundle.get("reference_snippets") and not lines:
         lines.append("Here is trusted general information (not specific to your chart):")
@@ -199,7 +284,7 @@ def generate_answer(
             from .watsonx_client import generate_text, watsonx_configured
 
             if watsonx_configured():
-                raw = generate_text(prompt, max_new_tokens=420, temperature=0.2)
+                raw = generate_text(prompt, max_new_tokens=320, temperature=0.2)
                 answer, cites = _parse_generation_json(raw)
                 if answer:
                     if not cites:
@@ -247,10 +332,10 @@ def generate_answer(
                         json={
                             "model": model,
                             "messages": messages,
-                            "max_tokens": 420,
+                            "max_tokens": 320,
                             "temperature": 0.2,
                         },
-                        timeout=10,
+                        timeout=8,
                     )
                     if resp.status_code >= 400:
                         print(f"[generation] Featherless {model} failed with status {resp.status_code}")

@@ -27,6 +27,7 @@ export default function AIAssistant() {
   const [thinkingStepIdx, setThinkingStepIdx] = useState(0);
   const scrollRef = useRef(null);
   const recognitionRef = useRef(null);
+  const requestControllerRef = useRef(null);
 
   useEffect(() => {
     api.get("/patients").then((r) => setMe(r.data?.[0]));
@@ -80,22 +81,41 @@ export default function AIAssistant() {
   };
 
   const send = async (text) => {
-    if (!text.trim() || !me) return;
+    if (!text.trim() || !me || thinking) return;
     setInput("");
     const userMsg = { id: Date.now() + "u", role: "user", text };
     setMessages((m) => [...m, userMsg]);
     setThinking(true);
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
     try {
-      const r = await api.post("/ai/chat", { patient_id: me.id, session_id: sessionId, text });
+      const r = await api.post(
+        "/ai/chat",
+        { patient_id: me.id, session_id: sessionId, text },
+        { signal: controller.signal },
+      );
       setSessionId(r.data.session_id);
       const { cleanReply, sources } = normalizeReply(r.data.reply, r.data.sources);
       const aiMsg = { id: Date.now() + "a", role: "ai", text: cleanReply, sources };
       setMessages((m) => [...m, aiMsg]);
-    } catch {
-      setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: "Sorry, I couldn't reach the assistant. Please try again." }]);
+    } catch (e) {
+      if (e?.code === "ERR_CANCELED") {
+        setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: "Response stopped." }]);
+      } else {
+        setMessages((m) => [...m, { id: Date.now() + "a", role: "ai", text: "Sorry, I couldn't reach the assistant. Please try again." }]);
+      }
     } finally {
+      requestControllerRef.current = null;
       setThinking(false);
     }
+  };
+
+  const stopGeneration = () => {
+    if (requestControllerRef.current) {
+      requestControllerRef.current.abort();
+      requestControllerRef.current = null;
+    }
+    setThinking(false);
   };
 
   const startRecording = async () => {
@@ -225,6 +245,7 @@ export default function AIAssistant() {
                 {SUGGESTIONS.map((s) => (
                   <button key={s} data-testid={`suggestion-${s.replace(/\s+/g, "-").toLowerCase()}`}
                           onClick={() => send(s)}
+                          disabled={thinking}
                           className="px-4 py-2 rounded-full bg-[#F7FFFD] border border-[#A7E3D4] text-sm text-[#2F5D57] hover:bg-[#D9F5EF] transition-colors">
                     {s}
                   </button>
@@ -307,15 +328,22 @@ export default function AIAssistant() {
               data-testid="ai-chat-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !thinking) { e.preventDefault(); send(input); } }}
               rows={1}
               placeholder={recording ? "Listening…" : "Ask anything about your health…"}
               className="flex-1 resize-none p-3 rounded-xl bg-[#F7FFFD] border border-[#C2EBE1] text-sm focus:outline-none focus:ring-2 focus:ring-[#5BB9A6]/40 max-h-32"
             />
-            <button data-testid="send-message-button" onClick={() => send(input)} disabled={!input.trim() || thinking}
-                    className="w-10 h-10 rounded-xl bg-[#5BB9A6] hover:bg-[#4AA391] flex items-center justify-center text-white transition-colors disabled:opacity-50">
-              <Send className="w-4 h-4" />
-            </button>
+            {!thinking ? (
+              <button data-testid="send-message-button" onClick={() => send(input)} disabled={!input.trim()}
+                      className="w-10 h-10 rounded-xl bg-[#5BB9A6] hover:bg-[#4AA391] flex items-center justify-center text-white transition-colors disabled:opacity-50">
+                <Send className="w-4 h-4" />
+              </button>
+            ) : (
+              <button data-testid="stop-message-button" onClick={stopGeneration}
+                      className="w-10 h-10 rounded-xl bg-[#E05A5A] hover:bg-[#c64b4b] flex items-center justify-center text-white transition-colors">
+                <Square className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </main>

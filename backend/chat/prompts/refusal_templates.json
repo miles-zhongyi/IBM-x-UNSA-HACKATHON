@@ -1,5 +1,6 @@
 {
   "crisis": "If you are in danger or thinking about hurting yourself, please call your local emergency number now (for example, 911 in the United States) or go to the nearest emergency department. You deserve immediate help from a trained professional. This chat cannot provide crisis care.",
   "emergency": "What you are describing could be a medical emergency. Please call your local emergency number or go to the nearest emergency department right now. This app cannot check how urgent your situation is.",
-  "medication_change": "I cannot tell you to start, stop, or change a medication or dose. Please contact your prescribing clinician or a pharmacist. I can still help you read what your visit notes say about your medicines."
+  "medication_change": "I cannot tell you to start, stop, or change a medication or dose. Please contact your prescribing clinician or a pharmacist. I can still help you read what your visit notes say about your medicines.",
+  "distress": "I hear that this feels scary right now, and you are not alone. I cannot predict exactly what will happen, but I can help explain what your notes say. If you feel overwhelmed or unsafe, please contact your care team right away or your local emergency number."
 }

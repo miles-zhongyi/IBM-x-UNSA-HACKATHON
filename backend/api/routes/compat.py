@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
+import re
 import time
 from typing import Any
 from uuid import uuid4
@@ -58,6 +60,9 @@ _PATIENT_SEEDS: dict[str, dict[str, Any]] = {
 _THREADS: dict[str, dict[str, Any]] = {}
 _MESSAGES: dict[str, list[dict[str, Any]]] = {}
 _CHAT_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+_ANSWER_FIELD = re.compile(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)"', re.S)
+_CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
+_BINARY_ARTIFACT = re.compile(r"(%PDF-|xref|endobj|stream|/Linearized|obj\s*<<)", re.I)
 
 
 class QueryCreateBody(BaseModel):
@@ -327,6 +332,78 @@ def _build_activity(limit: int = 6) -> list[dict[str, Any]]:
     return items[:limit]
 
 
+def _clean_display_text(text: Any) -> str:
+    t = _CTRL.sub(" ", str(text or ""))
+    t = t.replace("\r", " ").replace("\n", " ")
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _looks_noisy(text: str) -> bool:
+    t = _clean_display_text(text)
+    if len(t) < 20:
+        return False
+    if _BINARY_ARTIFACT.search(t):
+        return True
+    total = len(t)
+    alpha_words = re.findall(r"[A-Za-z]{3,}", t)
+    if len(alpha_words) < 3 and total > 60:
+        return True
+    spaces = sum(1 for c in t if c.isspace())
+    punct = sum(1 for c in t if c in ".,;:!?-()[]/%'\"+{}_\\|@#$^&*~`")
+    alpha_chars = sum(1 for c in t if c.isalpha())
+    digit_chars = sum(1 for c in t if c.isdigit())
+    non_ascii = sum(1 for c in t if ord(c) > 127)
+    weird = sum(1 for c in t if not (c.isalnum() or c.isspace() or c in ".,;:!?-()[]/%'\"+"))
+    if (alpha_chars / total) < 0.45 and ((punct + digit_chars) / total) > 0.25:
+        return True
+    if (non_ascii / total) > 0.12:
+        return True
+    if (weird / total) > 0.28 and (spaces / total) < 0.20:
+        return True
+    if (punct / total) > 0.30:
+        return True
+    tokens = re.findall(r"[A-Za-z0-9_-]{6,}", t)
+    low_vowel = 0
+    for tok in tokens:
+        letters = [c for c in tok if c.isalpha()]
+        if not letters:
+            continue
+        vowels = sum(1 for c in letters if c.lower() in "aeiou")
+        if vowels / len(letters) < 0.20:
+            low_vowel += 1
+    if tokens and low_vowel / len(tokens) > 0.6:
+        return True
+    return False
+
+
+def _normalize_ai_output(raw: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
+    reply = _clean_display_text(raw.get("answer") or "")
+    cites = raw.get("citations") if isinstance(raw.get("citations"), list) else []
+    if reply.startswith("{") and "\"answer\"" in reply:
+        try:
+            parsed = json.loads(reply)
+            if isinstance(parsed, dict):
+                reply = _clean_display_text(parsed.get("answer") or reply)
+                parsed_cites = parsed.get("citations")
+                if isinstance(parsed_cites, list) and not cites:
+                    cites = parsed_cites
+        except Exception:
+            m = _ANSWER_FIELD.search(reply)
+            if m:
+                frag = m.group(1)
+                try:
+                    reply = json.loads(f'"{frag}"')
+                except Exception:
+                    reply = _clean_display_text(frag.replace('\\"', '"').replace("\\n", "\n"))
+    cleaned_lines = []
+    for line in reply.splitlines():
+        if _looks_noisy(line):
+            continue
+        cleaned_lines.append(line)
+    reply = "\n".join(cleaned_lines).strip() or "I could not parse a clear answer. Please try rephrasing your question."
+    return reply, cites
+
+
 @router.get("/activity")
 def get_activity(limit: int = Query(6, ge=1, le=100)) -> list[dict[str, Any]]:
     return _build_activity(limit=limit)
@@ -447,11 +524,13 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
     cached = _CHAT_CACHE.get(cache_key)
     if cached and now - cached[0] < 300:
         payload = dict(cached[1])
+        fixed_reply, _ = _normalize_ai_output({"answer": payload.get("reply", ""), "citations": []})
+        payload["reply"] = fixed_reply
         payload["session_id"] = body.session_id or str(uuid4())
         return payload
 
     try:
-        raw = answer_patient_question(body.patient_id, body.text)
+        raw = answer_patient_question(body.patient_id, body.text, detail_level="basic")
     except Exception:
         timeline = get_patient_timeline(body.patient_id)
         fallback = (
@@ -460,12 +539,15 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
             else "I could not run full retrieval right now, but your records are available and your care team can help with specific concerns."
         )
         raw = {"answer": fallback, "citations": []}
+    reply_text, raw_citations = _normalize_ai_output(raw)
     sources = []
     seen: set[tuple[str, str, str]] = set()
-    for i, c in enumerate(raw.get("citations", []), 1):
+    for i, c in enumerate(raw_citations, 1):
         doc_id = str(c.get("document_id") or "")
         date = str(c.get("visit_date") or "unknown date")
-        excerpt = str(c.get("chunk_text") or c.get("chunk_excerpt") or "").strip()
+        excerpt = _clean_display_text(c.get("chunk_text") or c.get("chunk_excerpt") or "")
+        if _looks_noisy(excerpt):
+            continue
         dedupe_key = (doc_id, date, excerpt[:120])
         if dedupe_key in seen:
             continue
@@ -484,7 +566,7 @@ def ai_chat(body: AIChatBody) -> dict[str, Any]:
             break
     payload = {
         "session_id": body.session_id or str(uuid4()),
-        "reply": raw.get("answer", ""),
+        "reply": reply_text,
         "sources": sources,
     }
     _CHAT_CACHE[cache_key] = (now, {k: v for k, v in payload.items() if k != "session_id"})
@@ -507,6 +589,12 @@ async def upload_document(
 ) -> dict[str, Any]:
     raw = await file.read()
     text = raw.decode("utf-8", errors="ignore").strip()
+    # Avoid indexing binary artifacts (e.g., raw PDF bytes decoded as text).
+    if raw[:5] == b"%PDF-" or _looks_noisy(text):
+        text = (
+            f"{title}\n\nUploaded file: {file.filename or title}. "
+            "This file format could not be parsed into clean text in demo mode."
+        )
     if not text:
         text = f"{title}\n\nDocument type: {doc_type}. Uploaded file: {file.filename}."
     result = ingest_text(text, patient_id=patient_id, source_label=file.filename or title)
