@@ -20,6 +20,7 @@ from .models import ExtractedDocument
 
 # Common SOAP/clinical note section headers. Order matters for splitting.
 SECTION_HEADERS = [
+    # ── Existing SOAP / clinical note headers ──────────────────────────────
     "Patient information",
     "Reason for admission",
     "Referral source",
@@ -45,6 +46,73 @@ SECTION_HEADERS = [
     "ROS",
     "Subjective",
     "Objective",
+
+    # ── Lab report headers ─────────────────────────────────────────────────
+    # These appear in PDF lab reports and normalized output from parser.py
+    "Laboratory Results",
+    "Lab Results",
+    "Test Results",
+    "Complete Blood Count",
+    "Basic Metabolic Panel",
+    "Comprehensive Metabolic Panel",
+    "Lipid Panel",
+    "Liver Function",
+    "Thyroid Function",
+    "Urinalysis",
+    "Blood Gas",
+    "Coagulation",
+    "Reference Range",
+    "Specimen Information",
+    "Ordering Provider",
+    "Collection Date",
+
+    # ── Discharge summary headers ──────────────────────────────────────────
+    # Both original and normalized versions (extraction_extensions.py maps
+    # "Discharge Diagnosis" → "Assessment", but originals may appear too)
+    "Discharge Diagnosis",
+    "Discharge Diagnoses",
+    "Admission Diagnosis",
+    "Principal Diagnosis",
+    "Hospital Course",
+    "Discharge Medications",
+    "Discharge Instructions",
+    "Discharge Condition",
+    "Discharge Disposition",
+    "Follow-up Instructions",
+    "Follow Up",
+    "Attending Physician",
+    "Consultants",
+    "Procedures Performed",
+    "Pending Results",
+    "Allergies",
+
+    # ── Imaging report headers ─────────────────────────────────────────────
+    "Clinical History",
+    "Technique",
+    "Comparison",
+    "Findings",
+    "Impression",
+    "Recommendation",
+
+    # ── Medication list headers ────────────────────────────────────────────
+    "Medication List",
+    "Active Medications",
+    "Prescribed Medications",
+    "Over-the-Counter Medications",
+    "Discontinued Medications",
+    "Allergies and Adverse Reactions",
+
+    # ── Referral letter headers ────────────────────────────────────────────
+    "Reason for Referral",
+    "Background",
+    "Relevant History",
+    "Request",
+    "Thank you",
+
+    # ── Excel / structured table markers (from parser.py output) ──────────
+    # parser.py prefixes each sheet with "Sheet: <name>" — treat each sheet
+    # as its own section so chunks don't span multiple sheets.
+    "Sheet",
 ]
 
 

@@ -12,6 +12,8 @@ from backend.ingestion.storage import (
 
 from .intent import Intent, extract_lab_hint
 
+from .rag_extensions import fuzzy_parse_date_in_question, date_to_range
+
 
 def _parse_iso_date_in_question(q: str) -> date | None:
     m = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", q or "")
@@ -62,15 +64,11 @@ def retrieve_for_intent(
         out["chunks"] = search_chunks(patient_id, q_emb, n_results=n_chunks)
 
     elif intent == Intent.POINT_IN_TIME:
-        d = _parse_iso_date_in_question(question)
+        d = fuzzy_parse_date_in_question(question)
         if d:
-            out["chunks"] = search_chunks(
-                patient_id,
-                q_emb,
-                n_results=n_chunks,
-                after_date=d,
-                before_date=d,
-            )
+            after, before = date_to_range(d)  # handles year-only, month-only, exact
+            out["chunks"] = search_chunks(patient_id, q_emb, n_results=n_chunks,
+                                          after_date=after, before_date=before)
         if not out["chunks"]:
             out["chunks"] = search_chunks(patient_id, q_emb, n_results=n_chunks)
 
