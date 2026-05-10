@@ -1,34 +1,39 @@
-# Frontend (Next.js 14)
+# Frontend (React + CRACO)
 
-## Run
+This frontend was integrated from:
+https://github.com/hheain/IBM-frontend_new/tree/main
 
-1. Start the API (repo root):
+## Run locally
+
+1. Start backend API from repo root:
 
 ```bash
 pip install -r backend/requirements.txt
 uvicorn backend.api.main:app --reload --port 8000
 ```
 
-2. Start the web app:
+2. Configure frontend environment:
 
 ```bash
 cd frontend
+copy .env.example .env
+```
+
+3. Install and run frontend:
+
+```bash
 npm install
-npm run dev
+npm start
 ```
 
 Open `http://localhost:3000`.
 
-## Configuration
+## Environment variables
 
-Optional: `frontend/.env.local`
+`frontend/.env`:
 
+```env
+REACT_APP_BACKEND_URL=http://127.0.0.1:8000
 ```
-NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
-```
 
-You can also change the API base URL from the patient screen (session state; not stored in `localStorage`).
-
-## PWA
-
-`app/manifest.ts` provides a web app manifest. Add real PNG icons later if you need broader install support on Android.
+If unset, the app now falls back to `http://127.0.0.1:8000`.
